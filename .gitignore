@@ -1,0 +1,18 @@
+# Bağımlılık ve günlükler (proje bağımlılıksızdır; ileride eklenirse)
+node_modules/
+npm-debug.log*
+*.log
+
+# Ortam ve gizli bilgiler
+.env
+*.env.local
+
+# Kişisel Claude ayarları
+.claude/
+
+# Editör ve işletim sistemi
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
