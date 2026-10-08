@@ -1,0 +1,2580 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-iFCqNSkIYvoMWblFGTMCP8DYnEHE8ZSPJ1uI6HmlS8Q=' 'sha256-8gMuylQ+U5Q2p1VTLkhkxuoWpfOepoVNUf+RsWp8RfA='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Nöbetçi Rota Planlayıcı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" integrity="sha384-6p9AefaqUhEVheRlj1mpAkbngHXy9mbYMrIdcIt4Jlc9lOLIablJq3bBsLOjGwZ7" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" integrity="sha384-pPVoXE8ft+zxKtxIDDI7SfTK6y95NHm4qa+hKEg/hs8VkjW5IP+9/dGOPCbDpUPl" crossorigin="anonymous">
+<style>
+/* Tasarım: yer kontrol istasyonu (GCS) dili. Koyu grafit-zeytin zemin, tek vurgu rengi kehribar.
+   Köşe sistemi: paneller 10px, kontroller 6px, göstergeler daire. Drone renkleri dataviz paletinden doğrulandı. */
+:root {
+  color-scheme: dark;
+  --bg: #0f1412;
+  --panel: #151c19;
+  --panel-2: #1b2420;
+  --line: #29342f;
+  --line-strong: #3a4842;
+  --text: #e6ece8;
+  --muted: #9caba2;
+  --faint: #6f7d76;
+  --accent: #f2c14e;
+  --accent-ink: #1d1604;
+  --accent-soft: rgba(242, 193, 78, .14);
+  --ok: #5cc98c;
+  --warn: #eaa53c;
+  --crit: #ef6158;
+  --focus: #8ec5ff;
+  --dial-face: #101613;
+  --seg-1: #f2c14e; --seg-2: #c9983a; --seg-3: #96712c; --seg-4: #5f4a22;
+  --d0: #3987e5; --d1: #d95926; --d2: #199e70; --d3: #c98500; --d4: #d55181; --d5: #9085e9;
+  --shadow: 0 10px 30px rgba(3, 8, 6, .45);
+  --r-panel: 10px;
+  --r-ctl: 6px;
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-num: "Chakra Petch", "IBM Plex Sans", sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #e9ede8; --panel: #f8faf7; --panel-2: #eef2ed; --line: #d3dbd4; --line-strong: #b9c4bc;
+    --text: #17201b; --muted: #4e5c54; --faint: #6c7a72;
+    --accent: #e8b23a; --accent-ink: #1d1604; --accent-soft: rgba(196, 140, 20, .14);
+    --ok: #1f8a52; --warn: #a86400; --crit: #c8352d; --focus: #1f66c2; --dial-face: #f3f6f2;
+    --seg-1: #e8b23a; --seg-2: #c08a1e; --seg-3: #8d6516; --seg-4: #5b420f;
+    --d0: #2a78d6; --d1: #eb6834; --d2: #1baf7a; --d3: #eda100; --d4: #e87ba4; --d5: #4a3aa7;
+    --shadow: 0 10px 30px rgba(40, 60, 50, .14);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e9ede8; --panel: #f8faf7; --panel-2: #eef2ed; --line: #d3dbd4; --line-strong: #b9c4bc;
+  --text: #17201b; --muted: #4e5c54; --faint: #6c7a72;
+  --accent: #e8b23a; --accent-ink: #1d1604; --accent-soft: rgba(196, 140, 20, .14);
+  --ok: #1f8a52; --warn: #a86400; --crit: #c8352d; --focus: #1f66c2; --dial-face: #f3f6f2;
+  --seg-1: #e8b23a; --seg-2: #c08a1e; --seg-3: #8d6516; --seg-4: #5b420f;
+  --d0: #2a78d6; --d1: #eb6834; --d2: #1baf7a; --d3: #eda100; --d4: #e87ba4; --d5: #4a3aa7;
+  --shadow: 0 10px 30px rgba(40, 60, 50, .14);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 14px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Yerleşim ---------- */
+.app {
+  display: grid; height: 100dvh;
+  grid-template-columns: 352px minmax(0, 1fr) 372px;
+  grid-template-rows: 60px minmax(0, 1fr) 252px;
+  grid-template-areas: "hdr hdr hdr" "left map right" "left bottom right";
+  gap: 10px; padding: 0 10px 10px;
+}
+.hdr { grid-area: hdr; display: flex; align-items: center; gap: 18px; min-width: 0; }
+.left { grid-area: left; }
+.mapwrap { grid-area: map; }
+.right { grid-area: right; }
+.bottom { grid-area: bottom; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); min-height: 0; min-width: 0; }
+
+/* ---------- Başlık ---------- */
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font-size: 20px; flex: none;
+}
+.brand h1 { margin: 0; font: 700 20px/1 var(--font-num); letter-spacing: .02em; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-status { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; min-width: 0; }
+.hdr-status strong { color: var(--text); font-weight: 600; }
+.hdr-actions { display: flex; gap: 8px; flex: none; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+  min-height: 36px; padding: 0 13px; border-radius: var(--r-ctl);
+  border: 1px solid var(--line-strong); background: var(--panel-2); cursor: pointer;
+  font-weight: 500; transition: background .15s, border-color .15s, transform .08s;
+}
+.btn:hover { border-color: var(--faint); }
+.btn:active { transform: translateY(1px); }
+.btn i { font-size: 17px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--crit); }
+.btn.icon { width: 36px; padding: 0; }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------- Sol panel: sekmeler + formlar ---------- */
+.left { display: flex; flex-direction: column; }
+.tabs { display: flex; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); }
+.tab {
+  flex: 1; min-height: 36px; border: 0; background: transparent; border-radius: var(--r-ctl); cursor: pointer;
+  color: var(--muted); font-weight: 500; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 2px;
+}
+.tab i { font-size: 18px; }
+.tab[aria-selected="true"] { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tabpanes { overflow-y: auto; flex: 1; padding: 14px 16px 22px; scrollbar-width: thin; }
+.pane[hidden] { display: none; }
+.pane h2 { font: 600 15px/1.3 var(--font-num); margin: 18px 0 10px; letter-spacing: .01em; }
+.pane h2:first-child { margin-top: 2px; }
+.pane > p.lead { color: var(--muted); margin: -4px 0 12px; font-size: 13px; }
+
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field label { font-size: 12.5px; color: var(--muted); font-weight: 500; line-height: 1.3; }
+.field .help { font-size: 12px; color: var(--faint); line-height: 1.4; }
+.inwrap { position: relative; display: flex; align-items: center; }
+.inwrap input, .field select, .field input[type="text"] {
+  width: 100%; min-height: 36px; padding: 6px 10px; border-radius: var(--r-ctl);
+  border: 1px solid var(--line-strong); background: var(--bg); color: var(--text);
+}
+.inwrap input { padding-right: 52px; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.inwrap .unit { position: absolute; right: 9px; font-size: 11.5px; color: var(--faint); pointer-events: none; }
+input:invalid { border-color: var(--crit); }
+input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 28px; }
+.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 13px; }
+.check input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.seg button { border: 0; background: transparent; min-height: 52px; border-radius: var(--r-ctl); cursor: pointer; color: var(--muted); font-size: 12.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.seg button i { font-size: 19px; }
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.slider-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); }
+
+.list { display: flex; flex-direction: column; gap: 6px; }
+.row-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
+.row-item .grow { flex: 1; min-width: 0; }
+.row-item .sub { color: var(--muted); font-size: 12px; }
+.empty { color: var(--faint); font-size: 13px; padding: 10px 2px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+
+.drone-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+.drone-card + .drone-card { margin-top: 8px; }
+.drone-head { display: flex; align-items: center; gap: 10px; padding: 9px 10px; }
+.drone-head .name { font-weight: 600; }
+.drone-head .grow { flex: 1; min-width: 0; }
+.drone-body { padding: 4px 12px 14px; border-top: 1px solid var(--line); }
+.drone-body h3 { font: 600 12.5px/1.3 var(--font-ui); color: var(--muted); margin: 14px 0 8px; }
+.add-row { display: flex; gap: 8px; margin-top: 10px; }
+.add-row select { flex: 1; min-height: 36px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--bg); padding: 0 8px; }
+
+.stat-inline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
+.stat-inline div { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
+.stat-inline b { display: block; font: 600 17px/1.2 var(--font-num); }
+.stat-inline span { font-size: 11.5px; color: var(--muted); }
+
+/* ---------- Harita ---------- */
+.mapwrap { position: relative; overflow: hidden; }
+#map { position: absolute; inset: 0; background: #1d2421; }
+.leaflet-container { font: 13px/1.4 var(--font-ui); }
+.leaflet-bar a { background: var(--panel); color: var(--text); border-color: var(--line) !important; }
+.leaflet-bar a:hover { background: var(--panel-2); color: var(--text); }
+.leaflet-control-attribution { background: rgba(15, 20, 18, .7) !important; color: #c9d2cd !important; }
+.leaflet-control-attribution a { color: #fff !important; }
+.tools {
+  position: absolute; top: 10px; right: 10px; z-index: 500; display: flex; flex-direction: column; gap: 4px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 5px; box-shadow: var(--shadow);
+}
+.tools .btn { justify-content: flex-start; min-width: 148px; border-color: transparent; background: transparent; font-size: 13px; }
+.tools .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.tools hr { border: 0; border-top: 1px solid var(--line); margin: 3px 2px; }
+.hint {
+  position: absolute; z-index: 600; left: 50%; top: 10px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; max-width: calc(100% - 210px);
+  background: var(--panel); border: 1px solid var(--accent); border-radius: var(--r-panel); box-shadow: var(--shadow); font-size: 13px;
+}
+.hint[hidden] { display: none; }
+.windbadge {
+  position: absolute; left: 10px; bottom: 26px; z-index: 500; display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 7px 12px 7px 8px; box-shadow: var(--shadow);
+}
+.windbadge .arrow { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-strong); display: grid; place-items: center; font-size: 18px; color: var(--accent); }
+.windbadge .arrow i { transition: transform .3s; }
+.windbadge b { font: 600 15px/1.1 var(--font-num); display: block; }
+.windbadge span { font-size: 11.5px; color: var(--muted); }
+.legend-map {
+  position: absolute; right: 10px; bottom: 26px; z-index: 500; display: flex; flex-direction: column; gap: 4px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 8px 12px; font-size: 12.5px; box-shadow: var(--shadow);
+}
+.legend-map .lg { display: flex; align-items: center; gap: 8px; }
+.legend-map .ln { width: 22px; height: 0; border-top: 3px solid; }
+.legend-map .ln.dash { border-top-style: dashed; border-top-width: 2px; }
+
+.vx { width: 12px; height: 12px; background: #fff; border: 2px solid #1b1b1b; border-radius: 2px; }
+.pin-home { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #1d1604; display: grid; place-items: center; font-size: 17px; border: 2px solid #1d1604; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.pin-poi { width: 26px; height: 26px; border-radius: 50% 50% 50% 2px; transform: rotate(-45deg); background: #f4f6f4; border: 2px solid #1b1b1b; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.pin-poi span { transform: rotate(45deg); font: 700 12px/1 var(--font-num); color: #1b1b1b; }
+.pin-obs { width: 26px; height: 26px; border-radius: 6px; background: #ef6158; color: #fff; display: grid; place-items: center; font-size: 15px; border: 2px solid #3a0d0a; }
+.uav { position: relative; width: 30px; height: 30px; }
+.uav .body { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 18px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.uav .tag { position: absolute; left: 34px; top: 5px; white-space: nowrap; font: 600 11.5px/1 var(--font-num); color: #fff; background: rgba(10, 14, 12, .78); padding: 3px 6px; border-radius: 4px; }
+.lane-label { font: 600 11px/1 var(--font-num); color: #fff; background: rgba(10, 14, 12, .75); padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
+
+/* ---------- Alt bant: göstergeler, simülasyon, kayıt ---------- */
+.bottom { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; background: transparent; border: 0; }
+.gauges { display: grid; grid-template-columns: repeat(3, 112px); grid-template-rows: repeat(2, 1fr); gap: 6px; padding: 8px; }
+.gauge { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 4px 6px; min-height: 0; }
+.gauge svg { width: 78px; height: 78px; display: block; }
+.gauge .gv { font: 600 12.5px/1.2 var(--font-num); color: var(--text); text-align: center; white-space: nowrap; }
+.gauge .gv small { color: var(--muted); font: 500 11px var(--font-ui); display: block; }
+.dial-face { fill: var(--dial-face); stroke: var(--line-strong); stroke-width: 1.2; }
+.dial-tick { stroke: var(--muted); stroke-width: 1.1; }
+.dial-tick.major { stroke: var(--text); stroke-width: 1.6; }
+.dial-num { fill: var(--muted); font: 600 7.5px var(--font-num); text-anchor: middle; dominant-baseline: middle; }
+.dial-needle { stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; transition: transform .12s linear; }
+.dial-hub { fill: var(--accent); }
+.dial-band-warn { stroke: var(--warn); }
+.dial-band-crit { stroke: var(--crit); }
+.att-sky { fill: #3f7fb8; } .att-ground { fill: #7a5634; }
+.att-line { stroke: #fff; stroke-width: 1; }
+.att-wing { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; fill: none; }
+
+.simlog { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+.simbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.simbar select { min-height: 36px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--bg); padding: 0 8px; }
+.simbar .clock { font: 600 16px/1 var(--font-num); min-width: 74px; }
+.simbar .scrub { flex: 1 1 160px; min-width: 120px; }
+.log { overflow: auto; min-height: 0; }
+.log table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.log thead th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 600; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.log td { padding: 5px 10px; vertical-align: top; }
+.log tbody tr:nth-child(even) td { background: var(--panel-2); }
+.log td.t { font-family: var(--font-num); white-space: nowrap; color: var(--muted); width: 1%; }
+.log td.who { white-space: nowrap; width: 1%; }
+.lvl-warn { color: var(--warn); } .lvl-crit { color: var(--crit); } .lvl-ok { color: var(--ok); }
+
+/* ---------- Sağ panel: sonuçlar ---------- */
+.right { overflow-y: auto; padding: 14px 16px 22px; scrollbar-width: thin; }
+.right h2 { font: 600 15px/1.3 var(--font-num); margin: 22px 0 10px; }
+.right h2:first-child { margin-top: 2px; }
+.summary { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--r-panel); overflow: hidden; }
+.summary > div { padding: 11px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.summary > div:nth-child(2n) { border-right: 0; }
+.summary > div:nth-last-child(-n+2) { border-bottom: 0; }
+.summary b { display: block; font: 600 22px/1.15 var(--font-num); }
+.summary span { color: var(--muted); font-size: 12px; }
+.summary .delta { font: 500 12px/1.3 var(--font-ui); margin-top: 3px; display: flex; gap: 4px; align-items: center; }
+.delta.good { color: var(--ok); } .delta.bad { color: var(--warn); }
+.costline { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.costline b { color: var(--text); font-family: var(--font-num); font-weight: 600; }
+
+.warns { display: flex; flex-direction: column; gap: 6px; }
+.warn { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); font-size: 13px; border-left: 3px solid; }
+.warn i { font-size: 17px; margin-top: 1px; flex: none; }
+.warn.crit { border-color: var(--crit); } .warn.crit i { color: var(--crit); }
+.warn.warn { border-color: var(--warn); } .warn.warn i { color: var(--warn); }
+.warn.ok { border-color: var(--ok); } .warn.ok i { color: var(--ok); }
+.warn .lvl { font-weight: 600; }
+
+.dres { border: 1px solid var(--line); border-radius: var(--r-panel); padding: 11px 12px; cursor: pointer; background: var(--panel); transition: border-color .15s; }
+.dres + .dres { margin-top: 8px; }
+.dres[aria-pressed="true"] { border-color: var(--accent); background: var(--panel-2); }
+.dres-head { display: flex; align-items: center; gap: 8px; }
+.dres-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dres-alt { font: 600 18px/1 var(--font-num); }
+.dres-alt small { font: 500 11.5px var(--font-ui); color: var(--muted); }
+.dres-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 10px; margin-top: 10px; }
+.dres-grid div { font-size: 11.5px; color: var(--muted); }
+.dres-grid b { display: block; font: 600 14px/1.25 var(--font-num); color: var(--text); }
+.batbar { margin-top: 10px; display: flex; gap: 3px; height: 8px; }
+.batbar span { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.dres-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 8px; }
+.dres-foot .sub { font-size: 12px; color: var(--muted); }
+
+.chart { position: relative; }
+.chart canvas { width: 100%; height: 170px; display: block; }
+.chart-cap { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.stack-row { display: grid; grid-template-columns: 74px 1fr 64px; gap: 8px; align-items: center; font-size: 12.5px; }
+.stack-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+.stack-bar { display: flex; gap: 2px; height: 16px; }
+.stack-bar span { display: block; height: 100%; min-width: 2px; }
+.stack-bar span:first-child { border-radius: 4px 0 0 4px; } .stack-bar span:last-child { border-radius: 0 4px 4px 0; }
+.stack-row .val { text-align: right; font-family: var(--font-num); }
+.tip { position: fixed; z-index: 2000; pointer-events: none; background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; box-shadow: var(--shadow); max-width: 240px; }
+.tip[hidden] { display: none; }
+.tip b { font-family: var(--font-num); }
+details.method { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 13px; color: var(--muted); }
+details.method summary { cursor: pointer; color: var(--text); font-weight: 600; }
+details.method li { margin: 5px 0; }
+
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 3000; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 14px; box-shadow: var(--shadow); font-size: 13px; }
+.toast[hidden] { display: none; }
+
+/* ---------- Çoklu arsa, kalkış, seçim ---------- */
+.row-item.selectable { cursor: pointer; }
+.row-item.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.row-item input[type="text"] { min-height: 32px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); padding: 2px 8px; width: 100%; }
+.tagk { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font: 700 12px/1 var(--font-num); flex: none; }
+.tagp { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; border: 2px solid var(--accent); color: var(--text); font: 700 12px/1 var(--font-num); flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; }
+.sel-row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: start; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.sel-row + .sel-row { margin-top: 6px; }
+.sel-row.off { opacity: .78; }
+.sel-row .why { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+.sel-row .badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.badge.on { background: var(--accent-soft); color: var(--text); border: 1px solid var(--accent); }
+.badge.off { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+.pres { border: 1px solid var(--line); border-radius: var(--r-panel); padding: 11px 12px; }
+.pres + .pres { margin-top: 8px; }
+.pres-head { display: flex; align-items: center; gap: 8px; }
+.pres-head b { flex: 1; }
+.parcel-label { background: rgba(10, 14, 12, .8); color: #fff; border: 1px solid #f2c14e; border-radius: 4px; font: 700 12px/1 var(--font-num); padding: 3px 6px; box-shadow: none; }
+.parcel-label::before { display: none; }
+.pin-home span { font: 700 11px/1 var(--font-num); }
+.busy { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Duyarlı ---------- */
+@media (max-width: 1360px) {
+  .app { grid-template-columns: 320px minmax(0, 1fr) 340px; }
+  .gauges { grid-template-columns: repeat(3, 100px); }
+  .gauge svg { width: 68px; height: 68px; }
+}
+@media (max-width: 1100px) {
+  .app { height: auto; min-height: 100dvh; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 62vh auto auto;
+    grid-template-areas: "hdr hdr" "map map" "bottom bottom" "left right"; }
+  .left { max-height: none; } .tabpanes { overflow: visible; }
+  .right { overflow: visible; }
+  .bottom { min-height: 250px; }
+  .log { max-height: 220px; }
+  .hdr { flex-wrap: wrap; padding: 10px 0; }
+}
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hdr" "map" "bottom" "left" "right"; padding: 0 12px 16px; }
+  .bottom { grid-template-columns: minmax(0, 1fr); }
+  .gauges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hdr-status { margin-left: 0; width: 100%; order: 3; }
+  .brand p { white-space: normal; }
+  .tools { top: auto; bottom: 74px; right: 8px; }
+  .tools .btn { min-width: 0; }
+  .tools .btn span { display: none; }
+  .legend-map { display: none; }
+  .hint { max-width: calc(100% - 20px); flex-wrap: wrap; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hdr">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><i class="ph-fill ph-drone"></i></div>
+      <div>
+        <h1>Nöbetçi</h1>
+        <p>Arsa izleme için filo rota ve irtifa planlayıcı</p>
+      </div>
+    </div>
+    <div class="hdr-status" id="hdrStatus" role="status" aria-live="polite">Plan hazırlanıyor</div>
+    <div class="hdr-actions">
+      <button class="btn" id="btnImport" type="button"><i class="ph ph-upload-simple" aria-hidden="true"></i>Ayar yükle</button>
+      <button class="btn" id="btnExport" type="button"><i class="ph ph-download-simple" aria-hidden="true"></i>Ayarları indir</button>
+      <button class="btn icon" id="btnTheme" type="button" aria-label="Açık ve koyu tema arasında geçiş yap"><i class="ph ph-sun" aria-hidden="true"></i></button>
+      <input type="file" id="fileImport" accept="application/json,.json" hidden>
+    </div>
+  </header>
+
+  <!-- Sol panel: girdiler -->
+  <section class="panel left" aria-label="Plan girdileri">
+    <div class="tabs" role="tablist" aria-label="Girdi grupları">
+      <button class="tab" role="tab" id="tab-arazi" aria-controls="pane-arazi" aria-selected="true"><i class="ph ph-polygon" aria-hidden="true"></i>Arazi</button>
+      <button class="tab" role="tab" id="tab-filo" aria-controls="pane-filo" aria-selected="false" tabindex="-1"><i class="ph ph-drone" aria-hidden="true"></i>Filo</button>
+      <button class="tab" role="tab" id="tab-gorev" aria-controls="pane-gorev" aria-selected="false" tabindex="-1"><i class="ph ph-path" aria-hidden="true"></i>Görev</button>
+      <button class="tab" role="tab" id="tab-ortam" aria-controls="pane-ortam" aria-selected="false" tabindex="-1"><i class="ph ph-wind" aria-hidden="true"></i>Ortam</button>
+      <button class="tab" role="tab" id="tab-maliyet" aria-controls="pane-maliyet" aria-selected="false" tabindex="-1"><i class="ph ph-coins" aria-hidden="true"></i>Maliyet</button>
+    </div>
+    <div class="tabpanes">
+      <div class="pane" id="pane-arazi" role="tabpanel" aria-labelledby="tab-arazi">
+        <h2>Arsalar</h2>
+        <div class="stat-inline" id="parcelStats"></div>
+        <p class="lead" style="margin-top:8px">Seçili arsanın köşelerini haritada sürükleyerek düzeltin; köşeye sağ tıklayınca silinir. Satıra tıklayınca arsa seçilir.</p>
+        <div class="list" id="parcelList"></div>
+        <div class="add-row"><button class="btn" type="button" id="btnAddParcel"><i class="ph ph-plus" aria-hidden="true"></i>Arsa ekle</button></div>
+        <h2>Kalkış noktaları</h2>
+        <p class="lead">Dronelar en uygun kalkış noktasından kalkar. Arsaya yakın nokta, gidiş dönüş enerjisini azaltır.</p>
+        <div class="list" id="homeList"></div>
+        <div class="add-row"><button class="btn" type="button" id="btnAddHome"><i class="ph ph-plus" aria-hidden="true"></i>Kalkış noktası ekle</button></div>
+        <h2>Harita</h2>
+        <div class="fields">
+          <div class="field wide">
+            <label for="gotoInput">Koordinata git</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="gotoInput" inputmode="decimal" placeholder="41.1105, 28.1620" autocomplete="off" style="flex:1">
+              <button class="btn" type="button" id="btnGoto">Git</button>
+            </div>
+            <span class="help" id="gotoHelp">Enlem ve boylamı virgülle ayırarak yazın.</span>
+          </div>
+          <div class="field wide">
+            <label for="baseLayer">Harita altlığı</label>
+            <select id="baseLayer"><option value="sat">Uydu görüntüsü</option><option value="osm">Sokak haritası</option></select>
+          </div>
+        </div>
+        <h2>Engeller</h2>
+        <p class="lead">Ağaç, direk, bina gibi yükseltiler. En yüksek engel, güvenli asgari irtifayı belirler.</p>
+        <div class="list" id="obsList"></div>
+        <h2>İlgi noktaları</h2>
+        <p class="lead">Kapı, depo, su deposu gibi her turda yakından bakılacak yerler. Noktasal kontrol görevinde kullanılır.</p>
+        <div class="list" id="poiList"></div>
+      </div>
+
+      <div class="pane" id="pane-filo" role="tabpanel" aria-labelledby="tab-filo" hidden>
+        <h2>Dronelarınız</h2>
+        <p class="lead">Her drone için gövde, batarya ve kamera bilgisi girin. Hazır sınıflar yaklaşık değerlerdir; kendi modelinizin verileriyle değiştirin.</p>
+        <div id="droneList"></div>
+        <div class="add-row">
+          <label class="sr-only" for="presetSelect">Eklenecek drone sınıfı</label>
+          <select id="presetSelect"></select>
+          <button class="btn" type="button" id="btnAddDrone"><i class="ph ph-plus" aria-hidden="true"></i>Drone ekle</button>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-gorev" role="tabpanel" aria-labelledby="tab-gorev" hidden>
+        <h2>Görev türü</h2>
+        <div class="seg" id="modeSeg" role="group" aria-label="Görev türü">
+          <button type="button" data-mode="coverage" aria-pressed="true"><i class="ph ph-grid-four" aria-hidden="true"></i>Alan tarama</button>
+          <button type="button" data-mode="perimeter" aria-pressed="false"><i class="ph ph-polygon" aria-hidden="true"></i>Çevre devriyesi</button>
+          <button type="button" data-mode="poi" aria-pressed="false"><i class="ph ph-map-pin-line" aria-hidden="true"></i>Noktasal kontrol</button>
+        </div>
+        <p class="lead" id="modeHelp" style="margin-top:8px"></p>
+        <h2>Sürekli gözlem</h2>
+        <label class="check"><input type="checkbox" id="continuous"> <span>Gözlem süresi boyunca döngüleri tekrarla; batarya değişimini ve şarj sırasını planla</span></label>
+        <h2>Drone seçimi</h2>
+        <div class="seg" id="selSeg" role="group" aria-label="Drone seçimi">
+          <button type="button" data-sel="auto" aria-pressed="true"><i class="ph ph-magic-wand" aria-hidden="true"></i>Otomatik</button>
+          <button type="button" data-sel="manual" aria-pressed="false"><i class="ph ph-hand-pointing" aria-hidden="true"></i>Elle</button>
+        </div>
+        <p class="lead" id="selHelp" style="margin-top:8px"></p>
+        <h2>Öncelik</h2>
+        <div class="field wide">
+          <label for="weight">Enerji tasarrufu ile zaman tasarrufu arasındaki denge</label>
+          <input type="range" id="weight" min="0" max="100" step="5">
+          <div class="slider-ends"><span>Enerji ve yakıt</span><span id="weightVal" class="num"></span><span>Süre</span></div>
+          <span class="help">Sol uç her drone'u en uzun menzil hızında uçurur; sağ uç azami hıza yaklaştırır. Şerit yönü de bu dengeye göre seçilir.</span>
+        </div>
+        <h2>Görüntü ve irtifa</h2>
+        <div class="fields" id="missionFields"></div>
+        <h2>Şerit yönü</h2>
+        <label class="check"><input type="checkbox" id="angleAuto"> <span>Yönü otomatik bul (rüzgâr, dönüş sayısı ve şerit boyuna göre)</span></label>
+        <div class="field wide" style="margin-top:10px">
+          <label for="angle">Elle şerit yönü</label>
+          <input type="range" id="angle" min="0" max="175" step="5">
+          <span class="help" id="angleVal"></span>
+        </div>
+        <h2>Filo düzeni</h2>
+        <label class="check"><input type="checkbox" id="layering"> <span>Her drone'a ayrı irtifa katmanı ver (çarpışma riskine karşı dikey ayrım)</span></label>
+        <div class="fields" id="opsFields" style="margin-top:12px"></div>
+      </div>
+
+      <div class="pane" id="pane-ortam" role="tabpanel" aria-labelledby="tab-ortam" hidden>
+        <h2>Rüzgâr ve hava</h2>
+        <p class="lead">Rüzgâr 10 m yükseklikte ölçülmüş kabul edilir; uçuş irtifasındaki değer kesme üssüyle hesaplanır.</p>
+        <div class="fields" id="envFields"></div>
+      </div>
+
+      <div class="pane" id="pane-maliyet" role="tabpanel" aria-labelledby="tab-maliyet" hidden>
+        <h2>Birim fiyatlar</h2>
+        <p class="lead">Örnek değerlerdir. Kendi tarifenizi ve batarya fiyatınızı girin.</p>
+        <div class="fields" id="costFields"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Harita -->
+  <section class="panel mapwrap" aria-label="Harita">
+    <div id="map" role="application" aria-label="Arsa ve rota haritası"></div>
+    <div class="tools" role="toolbar" aria-label="Harita araçları">
+      <button class="btn" type="button" data-tool="draw" aria-pressed="false"><i class="ph ph-polygon" aria-hidden="true"></i><span>Arsa ekle</span></button>
+      <button class="btn" type="button" data-tool="home" aria-pressed="false"><i class="ph ph-house-line" aria-hidden="true"></i><span>Kalkış ekle</span></button>
+      <button class="btn" type="button" data-tool="poi" aria-pressed="false"><i class="ph ph-map-pin-plus" aria-hidden="true"></i><span>İlgi noktası</span></button>
+      <button class="btn" type="button" data-tool="obstacle" aria-pressed="false"><i class="ph ph-tree-evergreen" aria-hidden="true"></i><span>Engel ekle</span></button>
+      <hr>
+      <button class="btn" type="button" id="btnFit"><i class="ph ph-corners-out" aria-hidden="true"></i><span>Tümüne odaklan</span></button>
+    </div>
+    <div class="hint" id="hint" hidden>
+      <span id="hintText"></span>
+      <button class="btn primary" type="button" id="hintDone" hidden>Bitir</button>
+      <button class="btn" type="button" id="hintCancel">Vazgeç</button>
+    </div>
+    <div class="windbadge" aria-live="polite">
+      <div class="arrow"><i class="ph-fill ph-arrow-up" id="windArrow" aria-hidden="true"></i></div>
+      <div><b class="num" id="windText">-</b><span id="windSub">rüzgâr</span></div>
+    </div>
+    <div class="legend-map" aria-label="Harita göstergesi">
+      <div class="lg"><span class="ln" style="border-color:var(--text)"></span>Çekim şeridi</div>
+      <div class="lg"><span class="ln dash" style="border-color:var(--text)"></span>Geçiş ve dönüş</div>
+    </div>
+  </section>
+
+  <!-- Alt bant -->
+  <section class="bottom" aria-label="Telemetri ve simülasyon">
+    <div class="panel gauges" id="gauges" aria-label="Seçili drone telemetrisi"></div>
+    <div class="panel simlog">
+      <div class="simbar">
+        <button class="btn primary" type="button" id="btnSim"><i class="ph-fill ph-play" aria-hidden="true"></i><span>Simüle et</span></button>
+        <button class="btn icon" type="button" id="btnReset" aria-label="Simülasyonu başa sar"><i class="ph ph-skip-back" aria-hidden="true"></i></button>
+        <label class="sr-only" for="simSpeed">Simülasyon hızı</label>
+        <select id="simSpeed">
+          <option value="30">30×</option><option value="60">60×</option><option value="300" selected>300×</option><option value="900">900×</option><option value="3600">3600×</option>
+        </select>
+        <label class="sr-only" for="simDrone">Göstergelerde izlenen drone</label>
+        <select id="simDrone"></select>
+        <span class="clock" id="simClock" aria-live="off">00:00</span>
+        <label class="sr-only" for="scrub">Zaman çizelgesi</label>
+        <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0">
+      </div>
+      <div class="log" tabindex="0" aria-label="Görev kayıtları">
+        <table>
+          <thead><tr><th scope="col">Saat</th><th scope="col">Drone</th><th scope="col">Mesaj</th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sağ panel: sonuçlar -->
+  <aside class="panel right" aria-label="Plan sonuçları" id="results"></aside>
+</div>
+<div class="tip" id="tip" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+
+<script id="motor">
+/* Hesap motoru: arayüzden bağımsızdır, motor.test.js ile node altında test edilir; tarayıcıda Web Worker içinde çalışır.
+   Kaynaklar: 2-opt rota sıralama (Udacity CppND, cuntou0906 GA/ACO fikri), enerji ödüllü rota seçimi (Dungyichao EV-RL),
+   değişken ağırlıklı maliyet (RoutingKit CCH fikri), döner kanat güç modeli (Zeng, Xu, Zhang 2019),
+   sabit kanat sürükleme kutupsalı, ISA atmosferi, rüzgâr kesme üssü yasası. */
+const Engine = (() => {
+  'use strict';
+  const G = 9.80665, RE = 6371008.8, D = Math.PI / 180;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const hyp = Math.hypot;
+  const dist = (a, b) => hyp(b[0] - a[0], b[1] - a[1]);
+  const rot = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0] * c - p[1] * s, p[0] * s + p[1] * c]; };
+  const MAX_SAMPLES = 60000;   // drone başına zaman çizelgesi üst sınırı
+  const MAX_SORTIES = 400;     // drone başına sorti üst sınırı
+
+  const BASE = { type: 'multi', source: 'battery', mass: 1, rotors: 4, rotorRadius: 0.12, dragArea: 0.015, eta: 70, avionicsW: 10, payloadW: 0,
+    capacityWh: 80, health: 95, batteries: 3, chargeMin: 60, fuelL: 0, bsfc: 550, vMax: 16, climb: 5, descent: 4, maxWind: 10,
+    wingArea: 0, cd0: 0.035, ar: 9, oswald: 0.8, vStall: 0, hfov: 80, imgW: 4000, imgH: 3000, trigger: 2, shutter: 1000 };
+  const P = (o) => Object.assign({}, BASE, o);
+  const PRESETS = [
+    { id: 'kompakt', name: 'Kompakt kameralı quad', spec: P({ mass: 0.95, rotors: 4, rotorRadius: 0.12, dragArea: 0.012, eta: 72, avionicsW: 8, capacityWh: 77, batteries: 3, chargeMin: 70, vMax: 19, climb: 6, descent: 5, maxWind: 12, hfov: 84, imgW: 5280, imgH: 3956, trigger: 2, shutter: 1000 }) },
+    { id: 'kurumsal', name: 'Kurumsal haritalama quad', spec: P({ mass: 6.3, rotors: 4, rotorRadius: 0.27, dragArea: 0.06, eta: 78, avionicsW: 15, payloadW: 12, capacityWh: 526, batteries: 2, chargeMin: 50, vMax: 21, climb: 6, descent: 5, maxWind: 12, hfov: 63.5, imgW: 8192, imgH: 5460, trigger: 0.8, shutter: 1600 }) },
+    { id: 'devriye', name: 'Hafif devriye quad', spec: P({ mass: 1.6, rotors: 4, rotorRadius: 0.15, dragArea: 0.02, eta: 70, avionicsW: 12, payloadW: 6, capacityWh: 99, batteries: 4, chargeMin: 60, vMax: 16, climb: 5, descent: 4, maxWind: 10, hfov: 82, imgW: 4000, imgH: 3000, trigger: 1.5, shutter: 800 }) },
+    { id: 'vtol', name: 'Elektrikli VTOL sabit kanat', spec: P({ type: 'fixed', mass: 7.5, rotors: 4, rotorRadius: 0.2, dragArea: 0.05, eta: 65, avionicsW: 25, payloadW: 15, capacityWh: 1000, batteries: 2, chargeMin: 90, vMax: 30, climb: 4, descent: 3, maxWind: 15, wingArea: 0.85, cd0: 0.035, ar: 9, oswald: 0.8, vStall: 14, hfov: 66, imgW: 6000, imgH: 4000, trigger: 1, shutter: 2000 }) },
+    { id: 'benzinli', name: 'Benzinli uzun menzil VTOL', spec: P({ type: 'fixed', source: 'fuel', mass: 16, rotors: 4, rotorRadius: 0.3, dragArea: 0.08, eta: 65, avionicsW: 30, payloadW: 20, capacityWh: 0, batteries: 1, chargeMin: 10, fuelL: 6, bsfc: 550, vMax: 34, climb: 4, descent: 3, maxWind: 16, wingArea: 1.4, cd0: 0.04, ar: 10, oswald: 0.8, vStall: 17, hfov: 66, imgW: 6000, imgH: 4000, trigger: 1, shutter: 2000 }) },
+  ];
+
+  /* ---------- Atmosfer ---------- */
+  function airDensity(altMSL, tempC) {
+    const T = tempC + 273.15 - 0.0065 * altMSL;
+    const p = 101325 * Math.pow(Math.max(0.2, 1 - 2.25577e-5 * altMSL), 5.25588);
+    return p / (287.05 * T);
+  }
+
+  /* ---------- Geometri ---------- */
+  function projector(lat0, lon0) {
+    const k = Math.cos(lat0 * D);
+    return {
+      toXY: (ll) => [(ll[1] - lon0) * D * RE * k, (ll[0] - lat0) * D * RE],
+      toLL: (p) => [lat0 + p[1] / RE / D, lon0 + p[0] / (RE * k) / D],
+    };
+  }
+  function signedArea(poly) {
+    let s = 0;
+    for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; s += a[0] * b[1] - b[0] * a[1]; }
+    return s / 2;
+  }
+  function perimeter(poly) { let s = 0; for (let i = 0; i < poly.length; i++) s += dist(poly[i], poly[(i + 1) % poly.length]); return s; }
+  function centroid(poly) { return [poly.reduce((a, p) => a + p[0], 0) / poly.length, poly.reduce((a, p) => a + p[1], 0) / poly.length]; }
+  function pointInPoly(p, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const a = poly[i], b = poly[j];
+      if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+    }
+    return inside;
+  }
+  function nearestOnPoly(p, poly) {
+    if (pointInPoly(p, poly)) return { q: p.slice(), d: 0 };
+    let best = { q: poly[0], d: Infinity };
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length], ab = [b[0] - a[0], b[1] - a[1]];
+      const L2 = ab[0] * ab[0] + ab[1] * ab[1] || 1;
+      const t = clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / L2, 0, 1);
+      const q = [a[0] + ab[0] * t, a[1] + ab[1] * t], d = dist(p, q);
+      if (d < best.d) best = { q, d };
+    }
+    return best;
+  }
+  function clipY(poly, lo, hi) {
+    const clip = (pts, keep, y) => {
+      const out = [];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length], ia = keep(a), ib = keep(b);
+        if (ia) out.push(a);
+        if (ia !== ib) out.push([a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]), y]);
+      }
+      return out;
+    };
+    let p = clip(poly, (q) => q[1] >= lo, lo);
+    if (p.length < 3) return [];
+    p = clip(p, (q) => q[1] <= hi, hi);
+    return p.length < 3 ? [] : p;
+  }
+  function scanSegments(poly, y) {
+    const xs = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      if ((a[1] <= y && b[1] > y) || (b[1] <= y && a[1] > y)) xs.push(a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+    }
+    xs.sort((p, q) => p - q);
+    const segs = [];
+    for (let i = 0; i + 1 < xs.length; i += 2) if (xs[i + 1] - xs[i] > 0.5) segs.push([xs[i], xs[i + 1]]);
+    return segs;
+  }
+  /* Biçerdöver (boustrophedon) şeritleri: döndürülmüş çerçevede y0..y1 bandı, şerit aralığı <= spacing */
+  function lanesInBand(polyR, y0, y1, spacing) {
+    const lanes = [], h = y1 - y0;
+    if (!(h > 0.01) || !(spacing > 0.5)) return lanes;
+    const n = Math.min(20000, Math.max(1, Math.ceil(h / spacing - 1e-9))), step = h / n;
+    let row = 0;
+    for (let i = 0; i < n; i++) {
+      const y = y0 + step * (i + 0.5);
+      let segs = scanSegments(polyR, y);
+      if (!segs.length) continue;
+      if (row % 2 === 1) segs = segs.slice().reverse().map((s) => [s[1], s[0]]);
+      segs.forEach((s) => lanes.push([[s[0], y], [s[1], y]]));
+      row++;
+    }
+    return lanes;
+  }
+  /* Alanı ağırlıklarla orantılı yatay bantlara böler (ikili arama). */
+  function splitBands(polyR, weights) {
+    const ys = polyR.map((p) => p[1]);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const total = Math.abs(signedArea(polyR));
+    const sumW = weights.reduce((a, b) => a + b, 0) || 1;
+    const cuts = [minY];
+    let acc = 0;
+    for (let k = 0; k < weights.length - 1; k++) {
+      acc += weights[k];
+      const target = total * acc / sumW;
+      let lo = cuts[cuts.length - 1], hi = maxY;
+      for (let it = 0; it < 40; it++) {
+        const mid = (lo + hi) / 2;
+        if (Math.abs(signedArea(clipY(polyR, minY, mid))) < target) lo = mid; else hi = mid;
+      }
+      cuts.push((lo + hi) / 2);
+    }
+    cuts.push(maxY);
+    return cuts;
+  }
+  /* Poligonu içeri doğru öteler (gönye birleşimli). poly saat yönü tersinde olmalı. */
+  function offsetInward(poly, d) {
+    const n = poly.length, out = [];
+    for (let i = 0; i < n; i++) {
+      const pv = poly[(i - 1 + n) % n], cu = poly[i], nx = poly[(i + 1) % n];
+      const e1 = [cu[0] - pv[0], cu[1] - pv[1]], e2 = [nx[0] - cu[0], nx[1] - cu[1]];
+      const l1 = hyp(...e1) || 1, l2 = hyp(...e2) || 1;
+      const n1 = [-e1[1] / l1, e1[0] / l1], n2 = [-e2[1] / l2, e2[0] / l2];
+      let b = [n1[0] + n2[0], n1[1] + n2[1]];
+      const lb = hyp(...b);
+      b = lb < 1e-6 ? n1 : [b[0] / lb, b[1] / lb];
+      const m = d / Math.max(0.35, b[0] * n1[0] + b[1] * n1[1]);
+      out.push([cu[0] + b[0] * m, cu[1] + b[1] * m]);
+    }
+    return out;
+  }
+  /* En yakın komşu + 2-opt tur (başlangıç sabit, başa dönüş dahil). Dönen: noktaların ziyaret sırası. */
+  function tour(start, pts) {
+    const n = pts.length;
+    if (n === 0) return [];
+    const all = [start, ...pts];
+    const dd = (i, j) => dist(all[i], all[j]);
+    const route = [0], used = new Set([0]);
+    while (route.length < n + 1) {
+      const last = route[route.length - 1];
+      let best = -1, bd = Infinity;
+      for (let j = 1; j <= n; j++) if (!used.has(j) && dd(last, j) < bd) { bd = dd(last, j); best = j; }
+      route.push(best); used.add(best);
+    }
+    route.push(0);
+    let improved = true, guard = 0;
+    while (improved && guard++ < 300) {
+      improved = false;
+      for (let i = 1; i < route.length - 2; i++) {
+        for (let k = i + 1; k < route.length - 1; k++) {
+          const a = route[i - 1], b = route[i], c = route[k], d = route[k + 1];
+          if (dd(a, c) + dd(b, d) < dd(a, b) + dd(c, d) - 1e-9) {
+            const seg = route.slice(i, k + 1).reverse();
+            route.splice(i, k - i + 1, ...seg);
+            improved = true;
+          }
+        }
+      }
+    }
+    return route.slice(1, -1).map((i) => i - 1);
+  }
+
+  /* ---------- Güç modelleri ---------- */
+  function hoverParams(s, rho) {
+    const W = s.mass * G, A = Math.max(1e-3, s.rotors * Math.PI * s.rotorRadius * s.rotorRadius);
+    const v0 = Math.sqrt(W / (2 * rho * A)), Pi = 1.15 * W * v0;
+    return { W, A, v0, Pi, P0: 0.45 * Pi };
+  }
+  function multiPower(s, V, rho) {
+    const h = hoverParams(s, rho), U = 110;
+    const r = V * V / (2 * h.v0 * h.v0);
+    const induced = h.Pi * Math.sqrt(Math.max(0, Math.sqrt(1 + r * r) - r));
+    const profile = h.P0 * (1 + 3 * V * V / (U * U));
+    const parasite = 0.5 * rho * s.dragArea * V * V * V;
+    return (profile + induced + parasite) / (s.eta / 100) + s.avionicsW + s.payloadW;
+  }
+  function fixedPower(s, V, rho) {
+    if (V < s.vStall * 1.05) return multiPower(s, 0, rho); // VTOL askı modu
+    const q = 0.5 * rho * V * V, W = s.mass * G;
+    const CL = W / (q * s.wingArea);
+    const CD = s.cd0 + CL * CL / (Math.PI * s.oswald * s.ar);
+    return q * s.wingArea * CD * V / (s.eta / 100) + s.avionicsW + s.payloadW;
+  }
+  const power = (s, V, rho) => (s.type === 'fixed' ? fixedPower(s, V, rho) : multiPower(s, V, rho));
+  const hoverPower = (s, rho) => multiPower(s, 0, rho);
+
+  function characteristicSpeeds(s, rho) {
+    const vmin = s.type === 'fixed' ? s.vStall * 1.1 : 0.5;
+    let vEndurance = vmin, pMin = Infinity, vRange = vmin, eMin = Infinity;
+    for (let v = vmin; v <= s.vMax + 1e-9; v += 0.1) {
+      const p = power(s, v, rho);
+      if (p < pMin) { pMin = p; vEndurance = v; }
+      if (p / v < eMin) { eMin = p / v; vRange = v; }
+    }
+    return { vEndurance, vRange, pMin, whPerKm: eMin * 1000 / 3600, vMin: vmin };
+  }
+  const altitudeForGsd = (gsdCm, hfovDeg, imgW) => (gsdCm / 100) * imgW / (2 * Math.tan(hfovDeg / 2 * D));
+
+  /* Hava hızı va ile u yönünde ilerlerken yer hızı. w: rüzgârın estiği yönde vektör. */
+  function groundSpeed(u, w, va) {
+    const uw = u[0] * w[0] + u[1] * w[1];
+    const disc = uw * uw - (w[0] * w[0] + w[1] * w[1]) + va * va;
+    if (disc < 0) return NaN;
+    return uw + Math.sqrt(disc);
+  }
+  function fullEnergyWh(s, env) {
+    if (s.source === 'fuel') return s.fuelL * 0.74 / (s.bsfc / 1000) * 1000;
+    const tf = env.tempC >= 20 ? 1 : clamp(1 - 0.008 * (20 - env.tempC), 0.5, 1);
+    return s.capacityWh * (s.health / 100) * tf;
+  }
+
+  /* ---------- Bacak maliyetleri ---------- */
+  function legCost(c, a, az, b, bz, cap) {
+    const s = c.d, r = { t: 0, e: 0, climb: 0, cruise: 0, vg: 0, va: 0, vs: 0, hdg: null, dist: 0, ok: true };
+    const dz = bz - az;
+    if (dz > 0.01) { const tz = dz / s.climb, p = c.pHover + s.mass * G * s.climb / (s.eta / 100); r.t += tz; r.climb += p * tz / 3600; r.vs = s.climb; }
+    else if (dz < -0.01) { const tz = -dz / s.descent, p = 0.85 * c.pHover; r.t += tz; r.climb += p * tz / 3600; r.vs = -s.descent; }
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = hyp(dx, dy);
+    if (L > 0.05) {
+      const u = [dx / L, dy / L], w = Math.max(az, bz) > 1 ? c.wind : [0, 0];
+      let va = c.va, vg = groundSpeed(u, w, va);
+      if (!(vg > 0.5)) { va = s.vMax; vg = groundSpeed(u, w, va); }
+      if (!(vg > 0.5)) { r.ok = false; vg = 0.5; }
+      if (cap && vg > c.vgCap) {
+        vg = c.vgCap; va = hyp(vg * u[0] - w[0], vg * u[1] - w[1]);
+        if (s.type === 'fixed' && va < s.vStall * 1.1) va = s.vStall * 1.1;
+      }
+      const th = L / vg;
+      r.t += th; r.cruise += power(s, va, c.rho) * th / 3600;
+      r.vg = vg; r.va = va; r.hdg = (Math.atan2(u[0], u[1]) / D + 360) % 360; r.dist = L;
+    }
+    r.e = r.climb + r.cruise;
+    return r;
+  }
+  function turnCost(c, h1, h2, v) {
+    const s = c.d;
+    const dpsi = Math.abs(((h2 - h1 + 540) % 360) - 180) * D;
+    if (dpsi < 0.15) return { t: 0, e: 0 };
+    if (s.type === 'fixed') {
+      const va = Math.max(v, s.vStall * 1.1), rT = va * va / (G * Math.tan(30 * D));
+      let tt = dpsi * rT / va;
+      if (dpsi > 2.5 && c.spacing < 2 * rT) tt += (2 * rT - c.spacing) * 2 / va; // omega dönüşü
+      return { t: tt, e: power(s, va, c.rho) * 1.15 * tt / 3600 };
+    }
+    const tt = (dpsi / Math.PI) * 2 * v / 2.5 + 1.0; // yavaşla, dön, hızlan
+    return { t: tt, e: c.pHover * tt / 3600 };
+  }
+  function subdivide(wps, maxLen) {
+    const out = [wps[0]];
+    for (let i = 1; i < wps.length; i++) {
+      const a = out[out.length - 1], b = wps[i], L = dist(a.p, b.p);
+      if (a.z === b.z && L > maxLen) {
+        const n = Math.min(400, Math.ceil(L / maxLen));
+        for (let k = 1; k < n; k++) out.push(Object.assign({}, b, { p: [a.p[0] + (b.p[0] - a.p[0]) * k / n, a.p[1] + (b.p[1] - a.p[1]) * k / n], laneStart: false, hover: 0, mid: true }));
+      }
+      out.push(b);
+    }
+    return out;
+  }
+  /* Yol noktası dizisini sorti bölmeden, hızlıca toplar (şerit yönü araması için). */
+  function quickEval(c, pts) {
+    let t = 0, e = 0, h = null, prev = { p: c.home, z: c.alt };
+    for (const w of pts) {
+      const L = legCost(c, prev.p, prev.z, w.p, w.z, w.cap);
+      if (h !== null && L.hdg !== null) { const T = turnCost(c, h, L.hdg, L.vg); t += T.t; e += T.e; }
+      t += L.t; e += L.e; if (L.hdg !== null) h = L.hdg; prev = w;
+    }
+    const back = legCost(c, prev.p, prev.z, c.home, c.alt, false);
+    return { t: t + back.t, e: e + back.e };
+  }
+
+  /* ---------- Uçuş: zaman çizelgesi, enerji, batarya değişimi, şarj sırası, sürekli döngü ----------
+     body(k): k. döngünün görev irtifasındaki yol noktaları. cont: { window, repeatSec } veya null (tek döngü). */
+  function flyPath(c, m, body, cont) {
+    const s = c.d, tl = [];
+    let t = 0, eUsed = 0, sortie = 1, distM = 0, photos = 0, infeasible = false, totalE = 0, lastHdg = null, maxUse = 0, waitSec = 0, capSec = 0, abort = null;
+    const parts = { climb: 0, cruise: 0, turn: 0, hover: 0 };
+    const cycleEnds = [];
+    const spare = s.source === 'fuel' ? null : new Array(Math.max(0, Math.round(s.batteries || 1) - 1)).fill(0);
+    let pos = { p: c.home.slice(), z: 0 };
+    const atHome = () => dist(pos.p, c.home) < 1;
+    const push = (k, x) => tl.push(Object.assign({ t, x: pos.p[0], y: pos.p[1], z: pos.z, bat: Math.max(0, 100 * (1 - eUsed / c.full)), sortie, k }, x));
+    push('start', { vg: 0, va: 0, vs: 0, hdg: 0 });
+    const plan = (b, bz, cap) => {
+      const L = legCost(c, pos.p, pos.z, b, bz, cap);
+      const T = (L.hdg !== null && lastHdg !== null) ? turnCost(c, lastHdg, L.hdg, L.vg) : { t: 0, e: 0 };
+      return { L, T };
+    };
+    const apply = (b, bz, L, T, cap, kind, extra) => {
+      if (T.t > 0) { t += T.t; eUsed += T.e; totalE += T.e; parts.turn += T.e; push('turn', Object.assign({ vg: 0.5, va: L.va, vs: 0, hdg: L.hdg, cap: !!cap }, extra)); }
+      t += L.t; eUsed += L.e; totalE += L.e; parts.climb += L.climb; parts.cruise += L.cruise; distM += L.dist;
+      pos = { p: b.slice(), z: bz };
+      if (cap) { photos += L.dist / c.photoDist; capSec += L.t; }
+      if (L.hdg !== null) lastHdg = L.hdg;
+      maxUse = Math.max(maxUse, eUsed);
+      push(kind, Object.assign({ vg: L.vg, va: L.va, vs: L.vs, hdg: L.hdg === null ? (lastHdg || 0) : L.hdg, cap: !!cap }, extra));
+    };
+    const returnCost = (p, z) => legCost(c, p, z, c.home, z, false).e + legCost(c, c.home, z, c.home, 0, false).e;
+    const goHomeLand = () => {
+      let r = plan(c.home, pos.z, false); apply(c.home, pos.z, r.L, r.T, false, 'rth');
+      r = plan(c.home, 0, false); apply(c.home, 0, r.L, r.T, false, 'land');
+    };
+    const climbAtHome = (z) => { const r = plan(c.home, z, false); apply(c.home, z, r.L, r.T, false, 'climb'); lastHdg = null; };
+    const swapBattery = () => {
+      const swapSec = m.swapMin * 60, used = eUsed / c.full;
+      let ready = t + swapSec;
+      if (spare) {
+        const chargeSec = s.chargeMin * 60 * Math.min(1, used + 0.05);
+        if (spare.length) { spare.sort((a, b) => a - b); ready = Math.max(ready, spare.shift()); spare.push(t + chargeSec); }
+        else ready = Math.max(ready, t + chargeSec);
+      }
+      waitSec += Math.max(0, ready - t - swapSec);
+      t = ready; eUsed = 0; sortie++; lastHdg = null;
+      push('swap', { vg: 0, va: 0, vs: 0, hdg: 0 });
+    };
+    const step = (w) => {
+      const extra = w.pi !== undefined ? { pi: w.pi } : undefined;
+      let { L, T } = plan(w.p, w.z, w.cap);
+      if (!L.ok) infeasible = true;
+      const hoverE = (w.hover || 0) * c.pHover / 3600;
+      if (eUsed + T.e + L.e + hoverE + returnCost(w.p, w.z) > c.usable) {
+        // Batarya yetmiyor: eve dön, değiştir, kaldığın yere geri dön. Taze bataryayla da yetmiyorsa ulaşılamaz.
+        if (sortie >= MAX_SORTIES) { abort = 'sorties'; return false; }
+        const resume = { p: pos.p.slice(), z: pos.z }, wasHome = atHome();
+        if (!wasHome || pos.z > 0) goHomeLand();
+        swapBattery();
+        climbAtHome(resume.z > 0 ? resume.z : c.alt);
+        if (!wasHome) { const r = plan(resume.p, resume.z, false); apply(resume.p, resume.z, r.L, r.T, false, 'leg'); }
+        ({ L, T } = plan(w.p, w.z, w.cap));
+        if (eUsed + T.e + L.e + hoverE + returnCost(w.p, w.z) > c.usable) { infeasible = true; abort = 'range'; return false; }
+      }
+      apply(w.p, w.z, L, T, w.cap, w.cap ? 'cap' : 'leg', extra);
+      if (w.hover > 0) {
+        t += w.hover; eUsed += hoverE; totalE += hoverE; parts.hover += hoverE; photos += 1; capSec += w.hover;
+        maxUse = Math.max(maxUse, eUsed);
+        push('hover', Object.assign({ vg: 0, va: 0, vs: 0, hdg: lastHdg || 0, poi: w.poi, cap: true }, extra));
+      }
+      if (tl.length > MAX_SAMPLES) { abort = 'limit'; return false; }
+      return true;
+    };
+
+    if (cont && cont.startDelay > 0) { t = cont.startDelay; push('wait', { vg: 0, va: 0, vs: 0, hdg: 0 }); } // kademeli kalkış
+    climbAtHome(c.alt);
+    let k = 0;
+    outer: for (;;) {
+      const pts = body(k);
+      if (!pts.length) break;
+      const seq = subdivide([{ p: pos.p, z: pos.z }, ...pts], 150).slice(1);
+      for (const w of seq) if (!step(w)) break outer;
+      cycleEnds.push(t);
+      if (!cont) break;
+      k++;
+      const next = cont.repeatSec > 0 ? k * cont.repeatSec : t;
+      if (next >= cont.window || t >= cont.window) break;
+      // Sonraki döngüye kadar zaman varsa inip bataryayı değiştir ve bekle; yoksa doğrudan devam et.
+      const first = pts[0];
+      const outT = legCost(c, c.home, c.alt, first.p, c.alt, false).t + c.alt / s.climb;
+      const backT = legCost(c, pos.p, pos.z, c.home, pos.z, false).t + pos.z / s.descent;
+      if (next - t > backT + outT + m.swapMin * 60) {
+        goHomeLand();
+        if (eUsed / c.full > 0.1) swapBattery();
+        const takeoff = next - outT;
+        if (t < takeoff) { t = takeoff; push('wait', { vg: 0, va: 0, vs: 0, hdg: 0 }); }
+        climbAtHome(c.alt);
+      }
+    }
+    if (!(pos.z === 0 && atHome())) goHomeLand();
+    return { timeline: tl, timeSec: t, energyWh: totalE, parts, distM, photos: Math.round(photos), sorties: sortie, infeasible, abort,
+      maxUsePct: 100 * maxUse / c.full, waitSec, capSec, cycleEnds };
+  }
+
+  /* ---------- İrtifa ataması ---------- */
+  function assignAltitudes(desired, minAlt, maxAlt, sep, warn) {
+    const idx = desired.map((_, i) => i).sort((i, j) => desired[i] - desired[j]);
+    const out = [];
+    let prev = -Infinity;
+    idx.forEach((i) => { let a = clamp(Math.round(desired[i]), Math.ceil(minAlt), maxAlt); if (sep > 0 && a < prev + sep) a = prev + sep; out[i] = a; prev = a; });
+    if (!out.length) return out;
+    const top = Math.max(...out);
+    if (top > maxAlt) {
+      const shift = top - maxAlt;
+      idx.forEach((i) => { out[i] -= shift; });
+      if (Math.min(...out) < minAlt - 1e-6) {
+        warn('warn', 'Güvenli alt sınır ile yasal üst sınır arasında her drone\'a ayrı katman verecek yer yok. Dronelar ayrı bölgelerde uçtuğu için yatay ayrım kullanılıyor.');
+        idx.forEach((i) => { out[i] = clamp(Math.round(desired[i]), Math.ceil(minAlt), maxAlt); });
+      }
+    }
+    return out;
+  }
+
+  const speedCache = new Map();
+  function speedsFor(d, rho) {
+    const key = JSON.stringify([d.type, d.mass, d.rotors, d.rotorRadius, d.dragArea, d.eta, d.avionicsW, d.payloadW, d.vMax, d.wingArea, d.cd0, d.ar, d.oswald, d.vStall, Math.round(rho * 200)]);
+    if (!speedCache.has(key)) { if (speedCache.size > 500) speedCache.clear(); speedCache.set(key, characteristicSpeeds(d, rho)); }
+    return speedCache.get(key);
+  }
+  function makeCtx(d, alt, env, m, home, naive) {
+    const rho = airDensity(env.elevMSL + alt, env.tempC);
+    const tanH = Math.tan(d.hfov / 2 * D);
+    const fpW = 2 * alt * tanH, fpL = fpW * d.imgH / d.imgW, gsd = fpW / d.imgW;
+    const spacing = fpW * (1 - m.sideOverlap / 100), photoDist = Math.max(1, fpL * (1 - m.frontOverlap / 100));
+    const wAlt = env.windSpeed * Math.pow(Math.max(alt, 2) / 10, env.alpha);
+    const b = (env.windFrom + 180) * D;
+    const wind = [wAlt * Math.sin(b), wAlt * Math.cos(b)];
+    const sp = speedsFor(d, rho);
+    const lam = m.weight / 100;
+    let va = naive ? d.vMax : sp.vRange + lam * (d.vMax - sp.vRange);
+    if (d.type === 'fixed') va = Math.max(va, d.vStall * 1.1);
+    const vgCap = Math.min(photoDist / Math.max(0.2, d.trigger), 0.7 * gsd * d.shutter);
+    const full = fullEnergyWh(d, env), usable = full * (1 - m.reservePct / 100);
+    return { d, alt, rho, gsd, fpW, fpL, spacing, photoDist, wind, wAlt, sp, va, vgCap, full, usable, home, pHover: hoverPower(d, rho) };
+  }
+
+  /* ---------- Drone seçimi: her drone, arsa ve kalkış noktası çifti için iş hızı ve iş başına enerji ---------- */
+  function parcelWork(P, mode, inspectSec) {
+    if (mode === 'perimeter') return P.perimM;
+    if (mode === 'poi') return P.pois.length ? Math.sqrt(P.pois.length * P.areaM2) + P.pois.length * inspectSec * 8 : 0;
+    return P.areaM2;
+  }
+  function evalPair(d, home, P, m, env, minAlt) {
+    const alt = clamp(Math.round(altitudeForGsd(m.gsdCm, d.hfov, d.imgW)), Math.ceil(minAlt), m.maxAlt);
+    const c = makeCtx(d, alt, env, m, home, false);
+    if (c.wAlt > d.maxWind) return { ok: false, why: `rüzgâr ${c.wAlt.toFixed(1)} m/s, sınırı ${d.maxWind} m/s` };
+    const entry = nearestOnPoly(home, P.poly);
+    const oneWay = legCost(c, home, alt, entry.q, alt, false);
+    const vert = legCost(c, home, 0, home, alt, false), down = legCost(c, home, alt, home, 0, false);
+    const tE = 2 * oneWay.e + vert.e + down.e, tT = 2 * oneWay.t + vert.t + down.t;
+    if (tE > 0.6 * c.usable) return { ok: false, why: `menzil yetmiyor (arsaya ${(entry.d / 1000).toFixed(1)} km)` };
+    const vWork = m.mode === 'poi' ? c.va : Math.min(c.va, c.vgCap);
+    const rate = m.mode === 'coverage' ? c.spacing * vWork : vWork; // m²/s veya m/s
+    const pWork = power(d, Math.max(vWork, d.type === 'fixed' ? d.vStall * 1.1 : 0), c.rho);
+    const usableWork = c.usable - tE;
+    const flySec = usableWork / pWork * 3600;
+    const chargeSec = d.source === 'fuel' ? 0 : d.chargeMin * 60;
+    const nb = d.source === 'fuel' ? Infinity : Math.max(1, Math.round(d.batteries));
+    const period = Math.max(flySec + tT + m.swapMin * 60, (flySec + tT + chargeSec) / nb);
+    const duty = flySec / period;
+    const rateEff = rate * duty;
+    const ePer = pWork / 3600 / rate * (1 + tE / usableWork); // Wh / iş birimi
+    const lam = m.weight / 100;
+    return { ok: true, alt, dist: entry.d, rate, rateEff, ePer, duty, score: Math.pow(ePer, 1 - lam) * Math.pow(1 / rateEff, lam) };
+  }
+  function selectFleet(parcels, homes, drones, m, env, minAlt) {
+    const lam = m.weight / 100;
+    const W = parcels.map((P) => parcelWork(P, m.mode, m.inspectSec));
+    const ev = drones.map((d) => parcels.map((P) => homes.map((h) => (d.enabled === false ? { ok: false, why: 'kullanım dışı' } : evalPair(d, h, P, m, env, minAlt)))));
+    const bestHome = (di, pi) => { let b = -1; ev[di][pi].forEach((r, hi) => { if (r.ok && (b < 0 || r.score < ev[di][pi][b].score)) b = hi; }); return b; };
+    const A = drones.map(() => null); // { hi, parcels: [] }
+    // Sürekli gözlemde süreklilik şartı ceza olarak eklenir: devriyede her an en az bir drone görevde olmalı,
+    // taramada bir döngü istenen tekrar aralığını aşmamalı.
+    const cont = !!m.continuous, repeatSec = (m.repeatMin || 0) * 60;
+    const J = (Asg) => {
+      let E = 0, Tm = 0, pen = 0;
+      for (let pi = 0; pi < parcels.length; pi++) {
+        if (!(W[pi] > 0)) continue;
+        let R = 0, RE = 0, duty = 0;
+        Asg.forEach((a, di) => { if (a && a.parcels.includes(pi)) { const r = ev[di][pi][a.hi]; if (!r.ok) return; const share = r.rateEff / a.parcels.length; R += share; RE += share * r.ePer; duty += r.duty / a.parcels.length; } });
+        if (R <= 0) return Infinity;
+        E += W[pi] * RE / R; Tm = Math.max(Tm, W[pi] / R);
+        if (cont && m.mode === 'perimeter') pen += 3 * Math.max(0, 1.15 - duty);
+        else if (cont && repeatSec > 0) pen += 2 * Math.max(0, W[pi] / R / repeatSec - 1);
+      }
+      return (1 - lam) * Math.log(E || 1e-9) + lam * Math.log(Tm || 1e-9) + pen;
+    };
+    // 1) Tohumlama: büyük işten küçüğe her arsaya en iyi boştaki drone; kalmadıysa en iyi mevcut drone paylaşılır.
+    const order = parcels.map((_, i) => i).filter((i) => W[i] > 0).sort((a, b) => W[b] - W[a]);
+    const unserved = [];
+    order.forEach((pi) => {
+      let pick = -1, ph = -1, ps = Infinity;
+      drones.forEach((_, di) => { if (A[di]) return; const hi = bestHome(di, pi); if (hi >= 0 && ev[di][pi][hi].score < ps) { ps = ev[di][pi][hi].score; pick = di; ph = hi; } });
+      if (pick >= 0) { A[pick] = { hi: ph, parcels: [pi] }; return; }
+      drones.forEach((_, di) => { const a = A[di]; if (!a) return; const r = ev[di][pi][a.hi]; if (r.ok && r.score < ps) { ps = r.score; pick = di; } });
+      if (pick >= 0) A[pick].parcels.push(pi); else unserved.push(pi);
+    });
+    // 2) İyileştirme: boştaki bir drone'u bir arsaya eklemek amaç fonksiyonunu düşürüyorsa ekle.
+    let cur = J(A);
+    for (let it = 0; it < drones.length * parcels.length; it++) {
+      let best = null;
+      drones.forEach((_, di) => {
+        if (A[di]) return;
+        parcels.forEach((__, pi) => {
+          if (!(W[pi] > 0)) return;
+          ev[di][pi].forEach((r, hi) => {
+            if (!r.ok) return;
+            const trial = A.slice(); trial[di] = { hi, parcels: [pi] };
+            const j = J(trial);
+            if (j < cur - 1e-3 && (!best || j < best.j)) best = { di, pi, hi, j };
+          });
+        });
+      });
+      if (!best) break;
+      A[best.di] = { hi: best.hi, parcels: [best.pi] }; cur = best.j;
+    }
+    const reasons = drones.map((d, di) => {
+      if (A[di]) return null;
+      if (d.enabled === false) return 'Kullanım dışı olarak işaretli.';
+      const any = ev[di].some((row) => row.some((r) => r.ok));
+      if (!any) { const w = ev[di].flat().find((r) => !r.ok); return 'Uygun değil: ' + (w ? w.why : 'koşullar sağlanmıyor') + '.'; }
+      return lam < 0.5 ? 'Eklemek süreyi kısaltır ama bu öncelikte toplam enerjiyi artırır.' : 'Eklemek bu öncelikte belirgin kazanç sağlamıyor.';
+    });
+    return { A, ev, reasons, unserved, W };
+  }
+
+  /* ---------- Arsa başına rota parçaları ---------- */
+  function coverageSegments(P, ctxs, m, naive) {
+    const lam = m.weight / 100;
+    const thr = (c) => c.spacing * Math.min(c.va, c.vgCap) * (c.usable / (c.usable + c.pHover * m.swapMin / 60));
+    const tp = ctxs.map(thr), ef = ctxs.map((c, i) => tp[i] / power(c.d, Math.min(c.va, c.vgCap), c.rho));
+    const st = tp.reduce((a, b) => a + b, 0) || 1, se = ef.reduce((a, b) => a + b, 0) || 1;
+    const wts = naive ? ctxs.map(() => 1) : tp.map((t, i) => lam * t / st + (1 - lam) * ef[i] / se);
+    const build = (angleDeg) => {
+      const th = angleDeg * D, polyR = P.poly.map((p) => rot(p, -th));
+      const cuts = splitBands(polyR, wts);
+      return ctxs.map((c, i) => {
+        let lanes = lanesInBand(polyR, cuts[i], cuts[i + 1], c.spacing).map((l) => l.map((p) => rot(p, th)));
+        if (lanes.length && dist(c.home, lanes[lanes.length - 1][1]) < dist(c.home, lanes[0][0])) lanes = lanes.reverse().map((l) => [l[1], l[0]]);
+        return lanes;
+      });
+    };
+    const toPts = (lanes, c, pi) => { const out = []; lanes.forEach((l) => { out.push({ p: l[0], z: c.alt, laneStart: true, pi }); out.push({ p: l[1], z: c.alt, cap: true, pi }); }); return out; };
+    let angle = naive ? 90 : m.angle;
+    if (!naive && m.angleMode === 'auto') {
+      // Hızlı tahminle ara: tam simülasyon yalnızca seçilen açı için yapılır.
+      const score = (a) => {
+        const L = build(a); let E = 0, T = 0;
+        L.forEach((lanes, i) => { if (!lanes.length) return; const q = quickEval(ctxs[i], toPts(lanes, ctxs[i], P.idx)); E += q.e; T = Math.max(T, q.t); });
+        return { E, T };
+      };
+      const ref = score(0);
+      const J = (a) => { const s = score(a); return (1 - lam) * s.E / (ref.E || 1) + lam * s.T / (ref.T || 1); };
+      let best = 0, bs = Infinity;
+      for (let a = 0; a < 180; a += 10) { const s = J(a); if (s < bs) { bs = s; best = a; } }
+      for (let a = best - 8; a <= best + 8; a += 2) { const aa = (a + 180) % 180; const s = J(aa); if (s < bs) { bs = s; best = aa; } }
+      angle = best;
+    }
+    const lanesBy = build(angle);
+    return { angle, segs: ctxs.map((c, i) => {
+      const lanes = lanesBy[i], fwd = toPts(lanes, c, P.idx);
+      const rev = toPts(lanes.slice().reverse().map((l) => [l[1], l[0]]), c, P.idx);
+      return { lanes, body: (k) => (k % 2 ? rev : fwd) };
+    }) };
+  }
+  function perimeterSegments(P, ctxs, m) {
+    return { angle: null, segs: ctxs.map((c, i) => {
+      const loop = offsetInward(P.poly, Math.min(c.fpW / 2, 0.25 * Math.sqrt(P.areaM2)));
+      const per = perimeter(loop), target = per * i / ctxs.length;
+      let acc = 0, startIdx = 0, startPt = loop[0];
+      for (let k = 0; k < loop.length; k++) {
+        const a = loop[k], b = loop[(k + 1) % loop.length], L = dist(a, b);
+        if (acc + L >= target) { const f = (target - acc) / (L || 1); startPt = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; startIdx = k + 1; break; }
+        acc += L;
+      }
+      const ring = [startPt];
+      for (let k = 0; k < loop.length; k++) ring.push(loop[(startIdx + k) % loop.length]);
+      ring.push(startPt);
+      const first = ring.map((p, k) => ({ p, z: c.alt, cap: k > 0, pi: P.idx }));
+      const later = first.slice(1);
+      // tek tur enerjisi ve süresi (çevre başlangıcından başlayıp oraya dönerek)
+      let lapE = 0, lapT = 0, h = null;
+      for (let k = 1; k < ring.length; k++) {
+        const L = legCost(c, ring[k - 1], c.alt, ring[k], c.alt, true);
+        if (h !== null && L.hdg !== null) { const T = turnCost(c, h, L.hdg, L.vg); lapE += T.e; lapT += T.t; }
+        lapE += L.e; lapT += L.t; if (L.hdg !== null) h = L.hdg;
+      }
+      return { lanes: [], loop: ring, body: (k) => (k === 0 ? first : later), lapE, lapT };
+    }) };
+  }
+  function poiSegments(P, ctxs, m, naive) {
+    const pois = P.pois, groups = ctxs.map(() => []);
+    if (pois.length) {
+      const ref = ctxs[0].home;
+      const order = pois.map((p, i) => ({ i, a: Math.atan2(p[1] - ref[1], p[0] - ref[0]) })).sort((x, y) => x.a - y.a);
+      order.forEach((o, j) => { groups[Math.min(ctxs.length - 1, Math.floor(j * ctxs.length / pois.length))].push(o.i); });
+    }
+    return { angle: null, segs: ctxs.map((c, i) => {
+      const g = groups[i], pts = g.map((j) => pois[j]);
+      const ord = naive ? pts.map((_, j) => j) : tour(c.home, pts);
+      const seq = ord.map((j) => ({ p: pts[j], z: c.alt, hover: m.inspectSec, poi: P.poiIds[g[j]] + 1, pi: P.idx }));
+      return { lanes: [], body: () => seq };
+    }) };
+  }
+
+  /* ---------- Ana planlayıcı: çoklu arsa, çoklu kalkış, seçim, sürekli gözlem ---------- */
+  function planMission(input) {
+    const warnings = [];
+    const warn = (level, msg) => warnings.push({ level, msg });
+    const m = Object.assign({ selection: 'auto', continuous: false }, input.mission), env = input.env, costs = input.costs;
+    const parcelsIn = (input.parcels || []).filter((p) => p && p.pts && p.pts.length >= 3);
+    if (!parcelsIn.length) return { error: 'En az bir arsa sınırı (üç köşe) gerekli. Haritada Arsa ekle aracını kullanın.' };
+    const homesIn = (input.homes || []).filter((h) => h && h.ll);
+    if (!homesIn.length) return { error: 'En az bir kalkış noktası gerekli. Haritada Kalkış noktası aracını kullanın.' };
+    const drones = input.drones || [];
+    if (!drones.length) return { error: 'Filoda en az bir drone olmalı. Filo sekmesinden drone ekleyin.' };
+
+    const allPts = parcelsIn.flatMap((p) => p.pts);
+    const origin = [allPts.reduce((a, p) => a + p[0], 0) / allPts.length, allPts.reduce((a, p) => a + p[1], 0) / allPts.length];
+    const pj = projector(origin[0], origin[1]);
+    const homes = homesIn.map((h) => pj.toXY(h.ll));
+    const poisXY = (input.pois || []).map(pj.toXY);
+    const parcels = parcelsIn.map((p, idx) => {
+      let poly = p.pts.map(pj.toXY);
+      if (signedArea(poly) < 0) poly = poly.slice().reverse();
+      return { idx, name: p.name || `Arsa ${idx + 1}`, poly, areaM2: Math.abs(signedArea(poly)), perimM: perimeter(poly), cen: centroid(poly), pois: [], poiIds: [] };
+    });
+    poisXY.forEach((q, i) => {
+      let pi = parcels.findIndex((P) => pointInPoly(q, P.poly));
+      if (pi < 0) pi = parcels.reduce((b, P, j) => (dist(q, P.cen) < dist(q, parcels[b].cen) ? j : b), 0);
+      parcels[pi].pois.push(q); parcels[pi].poiIds.push(i);
+    });
+    const obsMax = (input.obstacles || []).reduce((a, o) => Math.max(a, +o.h || 0), 0);
+    const minAlt = obsMax + m.clearance + env.terrainVar;
+    if (minAlt > m.maxAlt) warn('crit', `Güvenli asgari irtifa (${minAlt.toFixed(0)} m) yasal sınırın (${m.maxAlt} m) üstünde. Engel yüksekliğini veya güvenlik payını kontrol edin.`);
+    if (m.mode === 'poi' && !poisXY.length) warn('warn', 'Noktasal kontrol için haritaya en az bir ilgi noktası ekleyin.');
+
+    // 1) Drone seçimi ve kalkış noktası ataması
+    let A, reasons, selEv = null;
+    if (m.selection === 'manual') {
+      A = drones.map((d) => {
+        const pi = Math.round(d.manualParcel ?? 0), hi = Math.round(d.manualHome ?? 0);
+        if (d.enabled === false || pi < 0 || pi >= parcels.length) return null;
+        return { hi: clamp(hi, 0, homes.length - 1), parcels: [pi] };
+      });
+      reasons = drones.map((d) => (A[drones.indexOf(d)] ? null : d.enabled === false ? 'Kullanım dışı olarak işaretli.' : 'Elle seçimde görev verilmedi.'));
+      parcels.forEach((P, pi) => { if (!A.some((a) => a && a.parcels.includes(pi))) warn('warn', `${P.name}: elle seçimde bu arsaya drone atanmadı.`); });
+    } else {
+      const sel = selectFleet(parcels, homes, drones, m, env, minAlt);
+      A = sel.A; reasons = sel.reasons; selEv = sel.ev;
+      sel.unserved.forEach((pi) => warn('crit', `${parcels[pi].name}: hiçbir drone bu arsaya ulaşamıyor veya rüzgârda uçamıyor. Daha yakın bir kalkış noktası ekleyin.`));
+    }
+    const used = drones.map((_, i) => !!A[i]);
+
+    // 2) İrtifa: aynı arsayı veya aynı kalkışı paylaşan dronelar (yolları kesişebilir) aynı grupta katmanlanır.
+    const desired = drones.map((d) => altitudeForGsd(m.gsdCm, d.hfov, d.imgW));
+    const usedIdx = drones.map((_, i) => i).filter((i) => used[i]);
+    const alts = drones.map((_, i) => clamp(Math.round(desired[i]), Math.ceil(minAlt), m.maxAlt));
+    const root = drones.map((_, i) => i);
+    const find = (i) => (root[i] === i ? i : (root[i] = find(root[i])));
+    usedIdx.forEach((i) => usedIdx.forEach((j) => {
+      if (j <= i) return;
+      if (A[i].hi === A[j].hi || A[i].parcels.some((p) => A[j].parcels.includes(p))) root[find(i)] = find(j);
+    }));
+    const groups = {};
+    usedIdx.forEach((i) => { (groups[find(i)] = groups[find(i)] || []).push(i); });
+    Object.values(groups).forEach((g) => {
+      const a = assignAltitudes(g.map((i) => desired[i]), minAlt, m.maxAlt, m.layering ? m.layerSep : 0, warn);
+      g.forEach((i, k) => { alts[i] = a[k]; });
+    });
+    const ctxs = drones.map((d, i) => makeCtx(d, alts[i], env, m, A[i] ? homes[A[i].hi] : homes[0], false));
+    const naiveAlts = drones.map((_, i) => clamp(Math.round(desired[i]), Math.ceil(minAlt), m.maxAlt));
+    const nctxs = drones.map((d, i) => makeCtx(d, naiveAlts[i], env, m, A[i] ? homes[A[i].hi] : homes[0], true));
+    usedIdx.forEach((i) => {
+      const d = drones[i], c = ctxs[i];
+      if (c.wAlt > d.maxWind) warn('crit', `${d.name}: ${c.alt} m irtifada rüzgâr ${c.wAlt.toFixed(1)} m/s, drone sınırı ${d.maxWind} m/s. Uçuşu erteleyin.`);
+      else if (c.wAlt > 0.8 * d.maxWind) warn('warn', `${d.name}: rüzgâr drone sınırının %80'ini aşıyor (${c.wAlt.toFixed(1)} m/s). Batarya rezervini artırın.`);
+      if (c.gsd * 100 > m.gsdCm * 1.05) warn('warn', `${d.name}: güvenlik ve katman kuralları irtifayı ${c.alt} m'ye çıkardı; gerçekleşen yer çözünürlüğü ${(c.gsd * 100).toFixed(1)} cm/px.`);
+      if (d.type === 'fixed' && c.vgCap < d.vStall * 1.1 && m.mode === 'coverage') warn('warn', `${d.name}: kamera tetik aralığı tutunma hızında bile bindirmeyi karşılamıyor. Tetik aralığını kısaltın veya bindirmeyi azaltın.`);
+      if (d.type === 'fixed' && m.mode === 'poi') warn('warn', `${d.name}: sabit kanat ilgi noktasında VTOL askı moduna geçer; askı enerjisi yüksektir.`);
+    });
+    if (env.tempC < 5) warn('warn', `Hava ${env.tempC} °C. Soğuk, batarya kapasitesini düşürür; bataryaları uçuştan önce ılık tutun.`);
+
+    // 3) Arsa başına rota parçaları
+    const segOf = drones.map(() => []); // drone -> [{pi, seg}]
+    const nsegOf = drones.map(() => []);
+    const parcelOut = parcels.map((P, pi) => {
+      const ids = usedIdx.filter((i) => A[i].parcels.includes(pi));
+      const out = { idx: pi, name: P.name, areaHa: P.areaM2 / 1e4, perimM: P.perimM, drones: ids, angle: null, poiCount: P.pois.length };
+      if (!ids.length) return out;
+      const cs = ids.map((i) => ctxs[i]), ns = ids.map((i) => nctxs[i]);
+      const build = (list, naive) => (m.mode === 'perimeter' ? perimeterSegments(P, list, m) : m.mode === 'poi' ? poiSegments(P, list, m, naive) : coverageSegments(P, list, m, naive));
+      const r = build(cs, false), nr = build(ns, true);
+      out.angle = r.angle;
+      ids.forEach((i, k) => { segOf[i].push({ pi, seg: r.segs[k] }); nsegOf[i].push({ pi, seg: nr.segs[k] }); });
+      return out;
+    });
+    // Birden çok arsaya giden drone: arsaları kalkışa yakınlık sırasıyla dolaşır.
+    const bodyFor = (i, list) => {
+      const h = ctxs[i].home;
+      const ord = list.slice().sort((a, b) => dist(h, parcels[a.pi].cen) - dist(h, parcels[b.pi].cen));
+      return (k) => ord.flatMap((x) => x.seg.body(k));
+    };
+    const window = m.opsHours * 3600;
+    const cont = m.continuous ? { window, repeatSec: (m.mode === 'perimeter' ? 0 : (m.repeatMin || 0) * 60) } : null;
+
+    const out = drones.map((d, i) => {
+      const c = ctxs[i];
+      const o = { name: d.name, idx: i, used: used[i], reason: reasons[i], type: d.type, source: d.source, spec: d,
+        homeIdx: A[i] ? A[i].hi : -1, parcelIdx: A[i] ? A[i].parcels.slice() : [],
+        alt: c.alt, gsdCm: c.gsd * 100, fpW: c.fpW, spacing: c.spacing, photoDist: c.photoDist, va: c.va, vgCap: c.vgCap, wAlt: c.wAlt,
+        rho: c.rho, speeds: c.sp, usable: c.usable, full: c.full, empty: true,
+        timeline: [], timeSec: 0, energyWh: 0, parts: { climb: 0, cruise: 0, turn: 0, hover: 0 }, distM: 0, photos: 0, sorties: 0, maxUsePct: 0,
+        waitSec: 0, lanes: [], loops: [], wps: [] };
+      if (selEv && A[i]) {
+        const pi = A[i].parcels[0], r = selEv[i][pi][A[i].hi];
+        o.metric = { ePer: r.ePer, rateEff: r.rateEff, duty: r.duty, dist: r.dist };
+      }
+      if (!used[i] || !segOf[i].length) return o;
+      const body = bodyFor(i, segOf[i]);
+      const one = flyPath(c, m, body, null);
+      const nbody = bodyFor(i, nsegOf[i]);
+      const base = flyPath(nctxs[i], m, nbody, null);
+      const toLL = (p) => pj.toLL(p);
+      const body0 = body(0);
+      Object.assign(o, {
+        empty: !body0.length,
+        lanes: segOf[i].flatMap((x) => x.seg.lanes).map((l) => l.map(toLL)),
+        loops: segOf[i].filter((x) => x.seg.loop).map((x) => x.seg.loop.map(toLL)),
+        wps: [{ p: c.home, z: 0 }, { p: c.home, z: c.alt }, ...body0, { p: c.home, z: c.alt }, { p: c.home, z: 0 }]
+          .map((w) => ({ ll: toLL(w.p), z: w.z, cap: !!w.cap, laneStart: !!w.laneStart, hover: w.hover || 0, poi: w.poi })),
+        timeSec: one.timeSec, energyWh: one.energyWh, parts: one.parts, distM: one.distM, photos: one.photos, sorties: one.sorties,
+        maxUsePct: one.maxUsePct, baseTimeSec: base.timeSec, baseEnergyWh: base.energyWh,
+      });
+      const capT = one.timeline.filter((s, k) => s.k === 'cap' && k > 0);
+      o.vgAvg = capT.length ? capT.reduce((a, s) => a + s.vg, 0) / capT.length : 0;
+      if (m.mode === 'perimeter') {
+        const segs = segOf[i].map((x) => x.seg);
+        o.lapT = segs.reduce((a, s) => a + s.lapT, 0); o.lapE = segs.reduce((a, s) => a + s.lapE, 0);
+        const transE = one.energyWh - o.lapE, transT = one.timeSec - o.lapT;
+        o.laps = Math.max(0, Math.floor((c.usable - Math.max(0, transE)) / Math.max(o.lapE, 1e-6)));
+        o.sortieT = o.laps * o.lapT + Math.max(0, transT); o.sortieE = o.laps * o.lapE + Math.max(0, transE);
+      }
+      let run = one;
+      if (cont) {
+        // Devriyede aynı arsadaki dronelar batarya süresinin kesirleriyle kademeli kalkar; değişimleri çakışmaz.
+        let startDelay = 0;
+        if (m.mode === 'perimeter') {
+          const mates = usedIdx.filter((j) => A[j].parcels[0] === A[i].parcels[0]), k = mates.indexOf(i);
+          const sortieSec = Math.min(...mates.map((j) => ctxs[j].usable / power(drones[j], ctxs[j].va, ctxs[j].rho) * 3600));
+          startDelay = k > 0 ? Math.min(window / 2, sortieSec * k / mates.length) : 0;
+        }
+        run = flyPath(c, m, body, Object.assign({ startDelay }, cont));
+      }
+      if (run.abort === 'range' || one.abort === 'range') warn('crit', `${d.name}: kalkış noktası menzil dışında; tek batarya gidiş, iş ve dönüşe yetmiyor. Arsaya daha yakın bir kalkış noktası ekleyin.`);
+      else if (run.infeasible) warn('crit', `${d.name}: rüzgâr bazı yönlerde ilerlemeye izin vermiyor.`);
+      if (run.abort === 'sorties' || run.abort === 'limit') warn('warn', `${d.name}: plan çok uzun (${run.sorties} sorti); gözlem süresinin sonu kesildi. Drone ekleyin veya GSD hedefini büyütün.`);
+      o.timeline = run.timeline.map((s) => Object.assign(s, { ll: toLL([s.x, s.y]) }));
+      o.contEnergyWh = run.energyWh; o.contSorties = run.sorties; o.waitSec = run.waitSec; o.capSec = run.capSec; o.cycleEnds = run.cycleEnds;
+      o.endSec = run.timeSec;
+      return o;
+    });
+
+    // 4) Arsa istatistikleri: döngü süresi, tekrar aralığı, görevdeki drone sayısı
+    const step = 60, nSteps = Math.max(2, Math.ceil(Math.max(window, ...out.map((o) => o.endSec || 0)) / step));
+    parcelOut.forEach((po) => {
+      const ds = po.drones.map((i) => out[i]).filter((o) => !o.empty);
+      po.cycleSec = ds.reduce((a, o) => Math.max(a, o.timeSec), 0);
+      po.energyWh = ds.reduce((a, o) => a + o.energyWh, 0);
+      po.baseTimeSec = ds.reduce((a, o) => Math.max(a, o.baseTimeSec || 0), 0);
+      po.baseEnergyWh = ds.reduce((a, o) => a + (o.baseEnergyWh || 0), 0);
+      // görevdeki (çekim yapan) drone sayısı serisi
+      const series = new Array(nSteps).fill(0);
+      ds.forEach((o) => {
+        const tl = o.timeline; let k = 1;
+        for (let s = 0; s < nSteps; s++) {
+          const t = s * step;
+          while (k < tl.length && tl[k].t < t) k++;
+          if (k < tl.length && tl[k].cap && tl[k].pi === po.idx && tl[k - 1].t <= t) series[s]++;
+        }
+      });
+      po.series = series; po.seriesStep = step;
+      const horizon = cont ? Math.min(nSteps, Math.ceil(window / step)) : nSteps;
+      po.onStationMean = series.slice(0, horizon).reduce((a, b) => a + b, 0) / horizon;
+      if (m.mode === 'perimeter') {
+        const lapT = ds.length ? ds.reduce((a, o) => a + (o.lapT || 0), 0) / ds.length : 0;
+        if (cont) {
+          po.revisitAvgSec = po.onStationMean > 0 ? lapT / po.onStationMean : 0;
+          const firstOn = series.findIndex((v) => v > 0);
+          po.gapSec = firstOn < 0 ? window : series.slice(firstOn, horizon).filter((v) => v === 0).length * step;
+          po.revisitMaxSec = po.revisitAvgSec + po.gapSec / Math.max(1, ds.reduce((a, o) => a + o.contSorties, 0));
+          po.cycles = Math.round(ds.reduce((a, o) => a + (o.capSec || 0), 0) / Math.max(lapT, 1));
+        } else {
+          const avail = ds.map((o) => (o.laps > 0 ? o.sortieT / (o.sortieT + m.swapMin * 60) : 0));
+          const sumA = avail.reduce((a, b) => a + b, 0);
+          po.revisitAvgSec = sumA > 0 ? ds.reduce((a, o) => Math.max(a, o.lapT), 0) / sumA : 0;
+          po.revisitMaxSec = po.revisitAvgSec; po.cycles = 1;
+          ds.forEach((o) => { if (o.laps < 1) warn('crit', `${o.name}: bir batarya ile ${po.name} çevresini dolaşamıyor. Daha büyük batarya veya daha düşük irtifa deneyin.`); });
+        }
+      } else if (cont) {
+        const n = ds.length ? Math.min(...ds.map((o) => o.cycleEnds.length)) : 0;
+        const ends = []; for (let k = 0; k < n; k++) ends.push(Math.max(...ds.map((o) => o.cycleEnds[k])));
+        const gaps = ends.map((e, k) => e - (k ? ends[k - 1] : 0));
+        po.cycles = n;
+        po.revisitAvgSec = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : po.cycleSec;
+        po.revisitMaxSec = gaps.length ? Math.max(...gaps) : po.cycleSec;
+        if (m.repeatMin && po.revisitMaxSec > m.repeatMin * 60 * 1.1) warn('warn', `${po.name}: en uzun tekrar aralığı ${Math.round(po.revisitMaxSec / 60)} dk, hedef ${m.repeatMin} dk. Drone, yedek batarya ekleyin veya şarj süresini kısaltın.`);
+      } else {
+        po.cycles = 1; po.revisitAvgSec = po.cycleSec; po.revisitMaxSec = po.cycleSec;
+        if (m.repeatMin && po.cycleSec > m.repeatMin * 60) warn('warn', `${po.name}: bir tam döngü ${Math.round(po.cycleSec / 60)} dk sürüyor, istenen tekrar aralığı ${m.repeatMin} dk. Drone ekleyin, GSD hedefini büyütün veya bindirmeyi azaltın.`);
+      }
+    });
+
+    // 5) Günlük işletme
+    const opsSec = window, act = out.filter((o) => !o.empty);
+    let dailyWhElec = 0, dailyWhFuel = 0, batCycles = 0;
+    const addDaily = (o, wh) => { if (o.source === 'fuel') dailyWhFuel += wh; else { dailyWhElec += wh; batCycles += wh / o.full; } };
+    let cyclesPerDay = Infinity;
+    if (cont) {
+      act.forEach((o) => addDaily(o, o.contEnergyWh));
+      parcelOut.forEach((po) => { if (po.drones.length) cyclesPerDay = Math.min(cyclesPerDay, m.mode === 'perimeter' ? opsSec / Math.max(1, po.revisitAvgSec) : po.cycles); });
+    } else if (m.mode === 'perimeter') {
+      act.forEach((o) => { if (o.laps >= 1) addDaily(o, opsSec / (o.sortieT + m.swapMin * 60) * o.sortieE); });
+      parcelOut.forEach((po) => { if (po.revisitAvgSec > 0) cyclesPerDay = Math.min(cyclesPerDay, opsSec / po.revisitAvgSec); });
+    } else {
+      parcelOut.forEach((po) => {
+        if (!po.drones.length) return;
+        const every = Math.max(po.cycleSec, (m.repeatMin || 0) * 60);
+        const n = every > 0 ? Math.floor(opsSec / every) : 0;
+        cyclesPerDay = Math.min(cyclesPerDay, n);
+        po.drones.forEach((i) => { if (!out[i].empty) addDaily(out[i], n * out[i].energyWh / out[i].parcelIdx.length); });
+      });
+    }
+    if (!Number.isFinite(cyclesPerDay)) cyclesPerDay = 0;
+    const fuelDr = act.filter((o) => o.source === 'fuel');
+    const avgBsfc = fuelDr.length ? fuelDr.reduce((a, o) => a + o.spec.bsfc, 0) / fuelDr.length : 550;
+    const dailyFuelL = dailyWhFuel / 1000 * (avgBsfc / 1000) / 0.74;
+    const dailyElecTL = dailyWhElec / 1000 / (costs.chargerEff / 100) * costs.elecPrice;
+    const dailyFuelTL = dailyFuelL * costs.fuelPrice;
+    const dailyWearTL = batCycles * costs.batteryPrice / Math.max(1, costs.batteryCycles);
+    const served = parcelOut.filter((p) => p.drones.length);
+    const totals = {
+      areaHa: parcelOut.reduce((a, p) => a + p.areaHa, 0), perimM: parcelOut.reduce((a, p) => a + p.perimM, 0),
+      makespanSec: act.reduce((a, o) => Math.max(a, o.timeSec), 0), energyWh: act.reduce((a, o) => a + o.energyWh, 0),
+      revisitSec: served.reduce((a, p) => Math.max(a, p.revisitAvgSec || 0), 0),
+      revisitMaxSec: served.reduce((a, p) => Math.max(a, p.revisitMaxSec || 0), 0),
+      cyclesPerDay, dailyWh: dailyWhElec + dailyWhFuel, dailyElecTL, dailyFuelL, dailyFuelTL, dailyWearTL, dailyTL: dailyElecTL + dailyFuelTL + dailyWearTL, batCycles,
+      photos: act.reduce((a, o) => a + o.photos, 0), usedDrones: act.length, waitSec: act.reduce((a, o) => a + (o.waitSec || 0), 0),
+    };
+    return {
+      mode: m.mode, continuous: !!cont, windowSec: window, selection: m.selection, origin, minAlt, obsMax,
+      homes: homesIn.map((h, i) => ({ name: h.name || `K${i + 1}`, ll: h.ll })),
+      parcels: parcelOut, drones: out, warnings,
+      angle: parcelOut.find((p) => p.angle !== null)?.angle ?? m.angle,
+      baseline: { energyWh: act.reduce((a, o) => a + (o.baseEnergyWh || 0), 0), timeSec: act.reduce((a, o) => Math.max(a, o.baseTimeSec || 0), 0) },
+      totals,
+    };
+  }
+
+  /* Tek arsa, tek kalkış için eski arayüz: tüm dronelar o arsada, tek döngü. */
+  function plan(input) {
+    const r = planMission(Object.assign({}, input, {
+      parcels: input.parcel ? [{ name: 'Arsa', pts: input.parcel }] : [],
+      homes: [{ name: 'K1', ll: input.home || (input.parcel && input.parcel[0]) }],
+      drones: (input.drones || []).map((d) => Object.assign({}, d, { manualParcel: 0, manualHome: 0 })),
+      mission: Object.assign({}, input.mission, { selection: 'manual', continuous: false }),
+    }));
+    return r;
+  }
+  function polygonStats(ll) {
+    if (!ll || ll.length < 3) return { areaHa: 0, perimM: 0 };
+    const c = centroid(ll), pj = projector(c[0], c[1]), poly = ll.map(pj.toXY);
+    return { areaHa: Math.abs(signedArea(poly)) / 1e4, perimM: perimeter(poly) };
+  }
+
+  return { PRESETS, BASE, airDensity, power, hoverPower, characteristicSpeeds, altitudeForGsd, groundSpeed, lanesInBand, splitBands, tour, plan, planMission, polygonStats, projector };
+})();
+if (typeof module !== 'undefined') module.exports = Engine;
+if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof importScripts === 'function') {
+  // Web Worker: plan isteklerini arka planda hesaplar, arayüz donmaz.
+  self.onmessage = (e) => {
+    const { id, input } = e.data || {};
+    let result;
+    try { result = Engine.planMission(input); } catch (err) { result = { error: 'Plan hesaplanamadı: ' + err.message }; }
+    self.postMessage({ id, result });
+  };
+}
+</script>
+
+<script id="arayuz">
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function h(tag, attrs, ...kids) {
+    const n = document.createElement(tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k === 'style') n.setAttribute('style', v);
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? '' : v);
+    }
+    kids.flat().forEach((k) => { if (k !== null && k !== undefined && k !== false) n.append(k.nodeType ? k : document.createTextNode(String(k))); });
+    return n;
+  }
+  const icon = (name, fill) => h('i', { class: (fill ? 'ph-fill ph-' : 'ph ph-') + name, 'aria-hidden': 'true' });
+  const fmt = (v, d = 0) => (Number.isFinite(v) ? v.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '-');
+  const fmtDur = (s) => {
+    if (!Number.isFinite(s) || s <= 0) return '-';
+    const hh = Math.floor(s / 3600), mm = Math.round((s % 3600) / 60);
+    return hh ? `${hh} sa ${mm} dk` : `${Math.max(1, mm)} dk`;
+  };
+  const clock = (s) => { s = Math.max(0, Math.floor(s)); const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60; return (hh ? hh + ':' : '') + String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0'); };
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const MAP_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9'];
+  const dColor = (i) => `var(--d${i % 6})`;
+  const MAX_DRONES = 6, MAX_PARCELS = 8, MAX_HOMES = 8;
+  const letter = (i) => String.fromCharCode(65 + i);
+
+  /* ---------- Alan tanımları (doğrulama sınırları da buradadır) ---------- */
+  const MISSION_FIELDS = [
+    { k: 'gsdCm', l: 'Hedef yer çözünürlüğü (GSD)', u: 'cm/px', min: 0.5, max: 20, step: 0.1, h: 'Küçük değer daha ayrıntılı görüntü verir ama daha alçak uçuş ve daha çok şerit gerektirir.', wide: true },
+    { k: 'frontOverlap', l: 'İleri bindirme', u: '%', min: 0, max: 90, step: 1 },
+    { k: 'sideOverlap', l: 'Yan bindirme', u: '%', min: 0, max: 90, step: 1 },
+    { k: 'clearance', l: 'Engel üstü pay', u: 'm', min: 2, max: 60, step: 1 },
+    { k: 'maxAlt', l: 'Yasal azami irtifa', u: 'm', min: 20, max: 500, step: 5, h: 'Açık kategoride genelde 120 m. İzninize göre değiştirin.' },
+  ];
+  const OPS_FIELDS = [
+    { k: 'layerSep', l: 'Katmanlar arası ayrım', u: 'm', min: 3, max: 40, step: 1 },
+    { k: 'reservePct', l: 'Batarya rezervi', u: '%', min: 5, max: 50, step: 1 },
+    { k: 'swapMin', l: 'Batarya değişimi', u: 'dk', min: 0.5, max: 60, step: 0.5 },
+    { k: 'inspectSec', l: 'Noktada bekleme', u: 'sn', min: 0, max: 600, step: 5 },
+    { k: 'opsHours', l: 'Günlük gözlem süresi', u: 'saat', min: 0.5, max: 24, step: 0.5, h: 'Sürekli gözlem bu süre boyunca planlanır ve simüle edilir.' },
+    { k: 'repeatMin', l: 'Tekrar aralığı', u: 'dk', min: 0, max: 1440, step: 5, h: 'Tarama ve nokta kontrolü bu aralıkla tekrarlanır. 0 ise bitince hemen yeniden başlar. Çevre devriyesi kesintisizdir.' },
+  ];
+  const ENV_FIELDS = [
+    { k: 'windSpeed', l: 'Rüzgâr hızı (10 m)', u: 'm/s', min: 0, max: 30, step: 0.5 },
+    { k: 'windFrom', l: 'Rüzgârın geldiği yön', u: '°', min: 0, max: 359, step: 5, h: '0 kuzey, 90 doğu. Poyraz için yaklaşık 30.' },
+    { k: 'alpha', l: 'Rüzgâr kesme üssü', u: '', min: 0.05, max: 0.45, step: 0.01, h: 'Açık arazi 0,14; ağaçlık 0,25; yerleşim 0,35.' },
+    { k: 'tempC', l: 'Hava sıcaklığı', u: '°C', min: -25, max: 50, step: 1 },
+    { k: 'elevMSL', l: 'Arsa rakımı', u: 'm', min: -50, max: 4000, step: 10, h: 'Yükseklik arttıkça hava incelir, askı gücü artar.' },
+    { k: 'terrainVar', l: 'Arsadaki kot farkı', u: 'm', min: 0, max: 200, step: 1, h: 'Eğimli arazide asgari irtifaya eklenir.' },
+  ];
+  const COST_FIELDS = [
+    { k: 'elecPrice', l: 'Elektrik birim fiyatı', u: 'TL/kWh', min: 0, max: 100, step: 0.1 },
+    { k: 'chargerEff', l: 'Şarj verimi', u: '%', min: 50, max: 100, step: 1 },
+    { k: 'fuelPrice', l: 'Benzin fiyatı', u: 'TL/L', min: 0, max: 500, step: 0.5 },
+    { k: 'batteryPrice', l: 'Batarya fiyatı', u: 'TL', min: 0, max: 500000, step: 100 },
+    { k: 'batteryCycles', l: 'Batarya ömrü', u: 'çevrim', min: 50, max: 3000, step: 10, wide: true, h: 'Aşınma maliyeti: kullanılan çevrim × fiyat / ömür.' },
+  ];
+  const DRONE_GROUPS = [
+    { t: 'Gövde ve itki', f: [
+      { k: 'mass', l: 'Kalkış ağırlığı', u: 'kg', min: 0.1, max: 60, step: 0.05 },
+      { k: 'rotors', l: 'Rotor sayısı', u: 'adet', min: 1, max: 12, step: 1 },
+      { k: 'rotorRadius', l: 'Pervane yarıçapı', u: 'm', min: 0.03, max: 1.5, step: 0.005 },
+      { k: 'dragArea', l: 'Eşdeğer sürükleme alanı', u: 'm²', min: 0.001, max: 0.5, step: 0.001 },
+      { k: 'eta', l: 'İtki verimi', u: '%', min: 20, max: 95, step: 1 },
+      { k: 'avionicsW', l: 'Aviyonik gücü', u: 'W', min: 0, max: 300, step: 1 },
+      { k: 'payloadW', l: 'Faydalı yük gücü', u: 'W', min: 0, max: 500, step: 1, h: 'Kamera, termal, gimbal, ışıldak.' },
+    ] },
+    { t: 'Sabit kanat', only: 'fixed', f: [
+      { k: 'wingArea', l: 'Kanat alanı', u: 'm²', min: 0.1, max: 10, step: 0.01 },
+      { k: 'ar', l: 'Açıklık oranı', u: '', min: 3, max: 25, step: 0.1 },
+      { k: 'cd0', l: 'Sıfır taşıma sürükleme', u: 'CD0', min: 0.01, max: 0.15, step: 0.001 },
+      { k: 'oswald', l: 'Oswald verimi', u: '', min: 0.5, max: 1, step: 0.01 },
+      { k: 'vStall', l: 'Tutunma hızı', u: 'm/s', min: 5, max: 40, step: 0.5 },
+    ] },
+    { t: 'Enerji', f: [
+      { k: 'capacityWh', l: 'Batarya kapasitesi', u: 'Wh', min: 5, max: 10000, step: 1, only: 'battery' },
+      { k: 'health', l: 'Batarya sağlığı', u: '%', min: 40, max: 100, step: 1, only: 'battery' },
+      { k: 'batteries', l: 'Batarya sayısı', u: 'adet', min: 1, max: 20, step: 1, only: 'battery', h: 'Takılı olan dahil. Yedek batarya sürekli gözlemde bekleme süresini kısaltır.' },
+      { k: 'chargeMin', l: 'Tam şarj süresi', u: 'dk', min: 5, max: 600, step: 5, only: 'battery' },
+      { k: 'fuelL', l: 'Depo hacmi', u: 'L', min: 0.2, max: 100, step: 0.1, only: 'fuel' },
+      { k: 'bsfc', l: 'Özgül yakıt tüketimi', u: 'g/kWh', min: 250, max: 1200, step: 5, only: 'fuel' },
+    ] },
+    { t: 'Performans', f: [
+      { k: 'vMax', l: 'Azami hız', u: 'm/s', min: 3, max: 60, step: 0.5 },
+      { k: 'maxWind', l: 'Rüzgâr dayanımı', u: 'm/s', min: 2, max: 30, step: 0.5 },
+      { k: 'climb', l: 'Tırmanma hızı', u: 'm/s', min: 0.5, max: 15, step: 0.5 },
+      { k: 'descent', l: 'İniş hızı', u: 'm/s', min: 0.5, max: 10, step: 0.5 },
+    ] },
+    { t: 'Kamera', f: [
+      { k: 'hfov', l: 'Yatay görüş açısı', u: '°', min: 10, max: 140, step: 0.5 },
+      { k: 'trigger', l: 'Asgari çekim aralığı', u: 'sn', min: 0.2, max: 10, step: 0.1 },
+      { k: 'imgW', l: 'Görüntü genişliği', u: 'px', min: 320, max: 20000, step: 1 },
+      { k: 'imgH', l: 'Görüntü yüksekliği', u: 'px', min: 240, max: 20000, step: 1 },
+      { k: 'shutter', l: 'Enstantane (1/x)', u: '1/s', min: 30, max: 16000, step: 10, wide: true, h: 'Hareket bulanıklığı 0,7 pikseli geçmeyecek şekilde yer hızını sınırlar.' },
+    ] },
+  ];
+  const ALL_DRONE_FIELDS = DRONE_GROUPS.flatMap((g) => g.f);
+
+  /* ---------- Varsayılan durum ---------- */
+  const NAMES = ['Kartal-1', 'Kartal-2', 'Şahin', 'Atmaca', 'Doğan', 'Çakır'];
+  const preset = (id) => Engine.PRESETS.find((p) => p.id === id) || Engine.PRESETS[0];
+  const newDrone = (pid, name) => Object.assign({ name, preset: pid, enabled: true, manualParcel: 0, manualHome: 0 }, JSON.parse(JSON.stringify(preset(pid).spec)));
+  function defaults() {
+    const d = [newDrone('kompakt', 'Kartal-1'), newDrone('kompakt', 'Kartal-2'), newDrone('kurumsal', 'Şahin'), newDrone('vtol', 'Atmaca')];
+    d[1].manualParcel = 1; d[1].manualHome = 1; d[3].manualParcel = -1;
+    return {
+      parcels: [
+        { name: 'Tarla', pts: [[41.1130, 28.1570], [41.1138, 28.1640], [41.1110, 28.1668], [41.1078, 28.1645], [41.1085, 28.1580]] },
+        { name: 'Bahçe', pts: [[41.1200, 28.1880], [41.1206, 28.1925], [41.1180, 28.1930], [41.1176, 28.1886]] },
+      ],
+      homes: [{ name: 'Ana depo', ll: [41.1084, 28.1598] }, { name: 'Bahçe kapısı', ll: [41.1190, 28.1905] }],
+      active: 0,
+      pois: [[41.1127, 28.1592], [41.1104, 28.1655], [41.1089, 28.1617], [41.1196, 28.1915]],
+      obstacles: [{ lat: 41.1121, lon: 28.1622, h: 18 }],
+      drones: d,
+      env: { windSpeed: 5, windFrom: 30, alpha: 0.14, tempC: 17, elevMSL: 60, terrainVar: 4 },
+      mission: { mode: 'coverage', gsdCm: 2.5, frontOverlap: 75, sideOverlap: 65, angleMode: 'auto', angle: 90, weight: 30,
+        layering: true, layerSep: 10, clearance: 15, maxAlt: 120, reservePct: 25, swapMin: 4, inspectSec: 15, opsHours: 6, repeatMin: 30,
+        selection: 'auto', continuous: true },
+      costs: { elecPrice: 3.2, chargerEff: 85, fuelPrice: 52, batteryPrice: 9500, batteryCycles: 300 },
+      baseLayer: 'sat',
+    };
+  }
+
+  /* ---------- Doğrulama: içe aktarılan veya saklanan veriye güvenilmez ---------- */
+  const num = (v, f, fb) => { const x = Number(v); return Number.isFinite(x) ? Math.min(f.max, Math.max(f.min, x)) : fb; };
+  const isLL = (p) => Array.isArray(p) && p.length === 2 && Number.isFinite(+p[0]) && Number.isFinite(+p[1]) && Math.abs(p[0]) <= 85 && Math.abs(p[1]) <= 180;
+  const str = (v, fb) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 24) : fb);
+  function sanitize(raw) {
+    const d = defaults();
+    if (!raw || typeof raw !== 'object') return d;
+    // Eski sürüm (tek arsa, tek kalkış) dosyalarını da kabul et
+    if (!raw.parcels && Array.isArray(raw.parcel)) raw.parcels = [{ name: 'Arsa', pts: raw.parcel }];
+    if (!raw.homes && isLL(raw.home)) raw.homes = [{ name: 'Kalkış', ll: raw.home }];
+    if (Array.isArray(raw.parcels)) {
+      const ps = raw.parcels.filter((p) => p && Array.isArray(p.pts) && p.pts.length >= 3 && p.pts.length <= 200 && p.pts.every(isLL)).slice(0, MAX_PARCELS)
+        .map((p, i) => ({ name: str(p.name, 'Arsa ' + letter(i)), pts: p.pts.map((q) => [+q[0], +q[1]]) }));
+      if (ps.length) d.parcels = ps;
+    }
+    if (Array.isArray(raw.homes)) {
+      const hs = raw.homes.filter((x) => x && isLL(x.ll)).slice(0, MAX_HOMES).map((x, i) => ({ name: str(x.name, 'Kalkış ' + (i + 1)), ll: [+x.ll[0], +x.ll[1]] }));
+      if (hs.length) d.homes = hs;
+    }
+    d.active = Math.min(d.parcels.length - 1, Math.max(0, Math.round(+raw.active || 0)));
+    if (Array.isArray(raw.pois)) d.pois = raw.pois.filter(isLL).slice(0, 60).map((p) => [+p[0], +p[1]]);
+    if (Array.isArray(raw.obstacles)) d.obstacles = raw.obstacles.filter((o) => o && isLL([o.lat, o.lon])).slice(0, 60).map((o) => ({ lat: +o.lat, lon: +o.lon, h: num(o.h, { min: 0, max: 300 }, 15) }));
+    if (Array.isArray(raw.drones) && raw.drones.length) {
+      d.drones = raw.drones.slice(0, MAX_DRONES).map((x, i) => {
+        const pid = Engine.PRESETS.some((p) => p.id === x.preset) ? x.preset : 'kompakt';
+        const o = newDrone(pid, NAMES[i]);
+        o.name = str(x.name, NAMES[i]);
+        o.type = x.type === 'fixed' ? 'fixed' : 'multi';
+        o.source = x.source === 'fuel' ? 'fuel' : 'battery';
+        o.enabled = x.enabled !== false;
+        o.manualParcel = num(x.manualParcel, { min: -1, max: d.parcels.length - 1 }, 0);
+        o.manualHome = num(x.manualHome, { min: 0, max: d.homes.length - 1 }, 0);
+        ALL_DRONE_FIELDS.forEach((f) => { o[f.k] = num(x[f.k], f, o[f.k]); });
+        return o;
+      });
+    }
+    const pull = (src, dst, fields) => { if (src && typeof src === 'object') fields.forEach((f) => { dst[f.k] = num(src[f.k], f, dst[f.k]); }); };
+    pull(raw.env, d.env, ENV_FIELDS);
+    pull(raw.costs, d.costs, COST_FIELDS);
+    pull(raw.mission, d.mission, [...MISSION_FIELDS, ...OPS_FIELDS, { k: 'weight', min: 0, max: 100 }, { k: 'angle', min: 0, max: 179 }]);
+    if (raw.mission) {
+      if (['coverage', 'perimeter', 'poi'].includes(raw.mission.mode)) d.mission.mode = raw.mission.mode;
+      d.mission.angleMode = raw.mission.angleMode === 'manual' ? 'manual' : 'auto';
+      d.mission.layering = raw.mission.layering !== false;
+      d.mission.selection = raw.mission.selection === 'manual' ? 'manual' : 'auto';
+      d.mission.continuous = raw.mission.continuous !== false;
+    }
+    d.baseLayer = raw.baseLayer === 'osm' ? 'osm' : 'sat';
+    return d;
+  }
+
+  const STORE_KEY = 'nobetci.plan.v2';
+  let S;
+  try { S = sanitize(JSON.parse(localStorage.getItem(STORE_KEY) || localStorage.getItem('nobetci.plan.v1') || 'null')); } catch (e) { S = defaults(); }
+  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* özel pencere: saklama yok */ } };
+
+  let R = null; // son plan
+  let toLL = null;
+  let selected = 0, expanded = -1;
+
+  /* ---------- Kayıt (log) ---------- */
+  const logBody = $('#logBody');
+  let lastPlanLogRow = null, lastPlanLogAt = 0;
+  function log(who, msg, lvl, opts = {}) {
+    const ts = new Date().toLocaleTimeString('tr-TR', { hour12: false });
+    const name = typeof who === 'number' ? (R && R.drones[who] ? R.drones[who].name : (S.drones[who] ? S.drones[who].name : '')) : who;
+    const tr = h('tr', null,
+      h('td', { class: 't', text: opts.simTime !== undefined ? 'T+' + clock(opts.simTime) : ts }),
+      h('td', { class: 'who' }, who === null ? '-' : h('span', { style: `color:${typeof who === 'number' ? dColor(who) : 'inherit'};font-weight:600`, text: name })),
+      h('td', { class: lvl ? 'lvl-' + lvl : null, text: msg }));
+    if (opts.replacePlan && lastPlanLogRow && Date.now() - lastPlanLogAt < 4000 && lastPlanLogRow.isConnected) lastPlanLogRow.replaceWith(tr);
+    else logBody.prepend(tr);
+    if (opts.replacePlan) { lastPlanLogRow = tr; lastPlanLogAt = Date.now(); }
+    while (logBody.children.length > 250) logBody.lastChild.remove();
+  }
+  let toastTimer = null;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2800); }
+
+  /* ---------- Form alanı üretici ---------- */
+  let fid = 0;
+  function numField(obj, f, onChange) {
+    const id = 'f' + (++fid);
+    const input = h('input', { id, type: 'number', min: f.min, max: f.max, step: f.step, value: obj[f.k], inputmode: 'decimal', 'aria-describedby': f.h ? id + 'h' : null });
+    input.addEventListener('input', () => {
+      const v = Number(input.value);
+      if (input.value === '' || !Number.isFinite(v) || v < f.min || v > f.max) { input.setAttribute('aria-invalid', 'true'); return; }
+      input.removeAttribute('aria-invalid');
+      obj[f.k] = v; onChange && onChange(f.k);
+    });
+    input.addEventListener('change', () => { input.value = obj[f.k]; input.removeAttribute('aria-invalid'); });
+    return h('div', { class: 'field' + (f.wide ? ' wide' : '') },
+      h('label', { for: id, text: f.l }),
+      h('div', { class: 'inwrap' }, input, f.u ? h('span', { class: 'unit', text: f.u }) : null),
+      f.h ? h('span', { class: 'help', id: id + 'h', text: f.h }) : null);
+  }
+  const renderFields = (container, obj, fields, onChange) => container.replaceChildren(...fields.map((f) => numField(obj, f, onChange)));
+
+  /* ---------- Sekmeler ---------- */
+  const tabs = $$('.tab');
+  function selectTab(t, focus) {
+    tabs.forEach((x) => { const on = x === t; x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; $('#' + x.getAttribute('aria-controls')).hidden = !on; });
+    if (focus) t.focus();
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => selectTab(t));
+    t.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); selectTab(tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length], true); } });
+  });
+
+  /* ---------- Harita ---------- */
+  const map = L.map('map', { zoomControl: true, doubleClickZoom: false }).setView(S.parcels[0].pts[0], 15);
+  const layers = {
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Uydu: Esri, Maxar, Earthstar Geographics' }),
+    osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap katkıcıları' }),
+  };
+  let curBase = null;
+  function setBase(k) { if (curBase) map.removeLayer(curBase); curBase = layers[k].addTo(map); S.baseLayer = k; $('#baseLayer').value = k; }
+  setBase(S.baseLayer);
+  $('#baseLayer').addEventListener('change', (e) => { setBase(e.target.value === 'osm' ? 'osm' : 'sat'); save(); });
+
+  const gParcel = L.layerGroup().addTo(map), gVerts = L.layerGroup().addTo(map), gRoutes = L.layerGroup().addTo(map),
+    gMarks = L.layerGroup().addTo(map), gSim = L.layerGroup().addTo(map), gDraw = L.layerGroup().addTo(map);
+  const divIcon = (html, size, anchor) => L.divIcon({ html, className: '', iconSize: size, iconAnchor: anchor || [size[0] / 2, size[1] / 2] });
+  const polyStyle = (i) => ({ color: '#f2c14e', weight: i === S.active ? 3 : 1.8, fillColor: '#f2c14e', fillOpacity: i === S.active ? 0.1 : 0.05, dashArray: i === S.active ? null : '6 5' });
+
+  const parcelLayers = [];
+  function drawParcels() {
+    gParcel.clearLayers(); gVerts.clearLayers(); parcelLayers.length = 0;
+    S.parcels.forEach((p, i) => {
+      const pl = L.polygon(p.pts, polyStyle(i)).addTo(gParcel);
+      pl.bindTooltip(`${letter(i)}  ${p.name}`, { permanent: true, direction: 'center', className: 'parcel-label', interactive: false });
+      pl.on('click', () => { if (!tool && S.active !== i) { S.active = i; drawParcels(); renderArazi(); save(); } });
+      parcelLayers[i] = pl;
+    });
+    const p = S.parcels[S.active];
+    if (!p) return;
+    p.pts.forEach((pt, j) => {
+      const mk = L.marker(pt, { draggable: true, icon: divIcon('<div class="vx"></div>', [12, 12]), title: `${p.name} köşe ${j + 1}. Sürükleyin; silmek için sağ tıklayın.`, alt: `${p.name} köşesi ${j + 1}` }).addTo(gVerts);
+      mk.on('drag', (e) => { p.pts[j] = [e.latlng.lat, e.latlng.lng]; parcelLayers[S.active].setLatLngs(p.pts); });
+      mk.on('dragend', () => changed('parcel'));
+      mk.on('contextmenu', () => { if (p.pts.length > 3) { p.pts.splice(j, 1); changed('parcel'); } else toast('Arsa en az üç köşe içermeli.'); });
+    });
+  }
+  function drawMarks() {
+    gMarks.clearLayers();
+    S.homes.forEach((hm, i) => {
+      const mk = L.marker(hm.ll, { draggable: true, icon: divIcon(`<div class="pin-home"><span>K${i + 1}</span></div>`, [30, 30]), title: `${hm.name}: sürükleyerek taşıyın, sağ tıklayınca silinir.`, alt: `Kalkış noktası ${hm.name}`, zIndexOffset: 900 }).addTo(gMarks);
+      mk.bindTooltip(`K${i + 1}  ${hm.name}`, { direction: 'top', offset: [0, -14] });
+      mk.on('dragend', (e) => { const l = e.target.getLatLng(); hm.ll = [l.lat, l.lng]; changed('home'); });
+      mk.on('contextmenu', () => removeHome(i));
+    });
+    S.pois.forEach((p, i) => {
+      const mk = L.marker(p, { draggable: true, icon: divIcon(`<div class="pin-poi"><span>${i + 1}</span></div>`, [26, 26], [13, 26]), title: `İlgi noktası ${i + 1}. Sağ tıkla silinir.`, alt: `İlgi noktası ${i + 1}` }).addTo(gMarks);
+      mk.on('dragend', (e) => { const l = e.target.getLatLng(); S.pois[i] = [l.lat, l.lng]; changed('poi'); });
+      mk.on('contextmenu', () => { S.pois.splice(i, 1); changed('poi'); });
+    });
+    S.obstacles.forEach((o, i) => {
+      L.circle([o.lat, o.lon], { radius: 12, color: '#ef6158', weight: 1.5, fillOpacity: 0.25, interactive: false }).addTo(gMarks);
+      const mk = L.marker([o.lat, o.lon], { draggable: true, icon: divIcon('<div class="pin-obs"><i class="ph-fill ph-tree-evergreen"></i></div>', [26, 26]), title: `Engel ${i + 1}: ${o.h} m. Sağ tıkla silinir.`, alt: `Engel ${i + 1}` }).addTo(gMarks);
+      mk.bindTooltip(`Engel ${i + 1}: ${fmt(o.h)} m`, { direction: 'top', offset: [0, -12] });
+      mk.on('dragend', (e) => { const l = e.target.getLatLng(); o.lat = l.lat; o.lon = l.lng; changed('obstacle'); });
+      mk.on('contextmenu', () => { S.obstacles.splice(i, 1); changed('obstacle'); });
+    });
+  }
+  function drawRoutes() {
+    gRoutes.clearLayers();
+    if (!R || R.error) return;
+    R.drones.forEach((d, i) => {
+      if (d.empty) return;
+      const col = MAP_COLORS[i % 6], isSel = i === selected;
+      L.polyline(d.wps.map((w) => w.ll), { color: '#ffffff', weight: 1.5, opacity: 0.55, dashArray: '5 6', interactive: false }).addTo(gRoutes);
+      const caps = [];
+      for (let k = 1; k < d.wps.length; k++) if (d.wps[k].cap) caps.push([d.wps[k - 1].ll, d.wps[k].ll]);
+      if (caps.length) {
+        L.polyline(caps, { color: '#ffffff', weight: isSel ? 6 : 4.5, opacity: 0.7, interactive: false }).addTo(gRoutes);
+        L.polyline(caps, { color: col, weight: isSel ? 3.5 : 2.5, opacity: 1, interactive: false }).addTo(gRoutes);
+      }
+      const ln = d.lanes.length ? d.lanes[Math.floor(d.lanes.length / 2)] : null;
+      const mid = ln ? [(ln[0][0] + ln[1][0]) / 2, (ln[0][1] + ln[1][1]) / 2] : (d.wps[3] || d.wps[0]).ll;
+      L.marker(mid, { icon: divIcon(`<span class="lane-label" style="border-left:3px solid ${col}">${esc(d.name)} ${d.alt} m</span>`, [0, 0], [-6, 10]), interactive: false, keyboard: false }).addTo(gRoutes);
+    });
+  }
+  function fit() {
+    const b = L.latLngBounds(S.parcels.flatMap((p) => p.pts));
+    S.homes.forEach((x) => b.extend(x.ll));
+    map.invalidateSize();
+    // sağ üstteki araç paneli ve alttaki rüzgâr kutusu arsaları örtmesin
+    map.fitBounds(b, { paddingTopLeft: [40, 40], paddingBottomRight: [window.innerWidth > 760 ? 190 : 40, 80] });
+  }
+  $('#btnFit').addEventListener('click', fit);
+
+  /* ---------- Harita araçları ---------- */
+  let tool = null, draft = [], redrawIdx = -1;
+  const hint = $('#hint');
+  function setTool(t) {
+    if (tool === 'draw' && t !== 'draw') { draft = []; gDraw.clearLayers(); }
+    tool = tool === t ? null : t;
+    if (tool !== 'draw') redrawIdx = -1;
+    $$('.tools [data-tool]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tool === tool));
+    map.getContainer().style.cursor = tool ? 'crosshair' : '';
+    const msgs = {
+      draw: redrawIdx >= 0 ? `${S.parcels[redrawIdx].name} için yeni sınırı çizin. İlk köşeye tıklayınca veya Enter ile biter.` : 'Yeni arsanın köşelerini tıklayın. İlk köşeye tıklayınca veya Enter ile biter.',
+      home: 'Yeni kalkış noktası için haritaya tıklayın.',
+      poi: 'İlgi noktası eklemek için tıklayın. Bitince Esc.',
+      obstacle: 'Engel eklemek için tıklayın; yüksekliği Arazi sekmesinden düzenleyin.',
+    };
+    hint.hidden = !tool;
+    $('#hintText').textContent = tool ? msgs[tool] : '';
+    $('#hintDone').hidden = tool !== 'draw';
+  }
+  $$('.tools [data-tool]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.tool === 'draw') redrawIdx = -1; setTool(b.dataset.tool); }));
+  $('#hintCancel').addEventListener('click', () => setTool(tool));
+  $('#hintDone').addEventListener('click', finishDraw);
+  function finishDraw() {
+    if (draft.length < 3) { toast('Arsa için en az üç köşe gerekli.'); return; }
+    if (redrawIdx >= 0 && S.parcels[redrawIdx]) {
+      S.parcels[redrawIdx].pts = draft.slice(); S.active = redrawIdx;
+      log('Plan', `${S.parcels[redrawIdx].name} sınırı yeniden çizildi (${draft.length} köşe).`, 'ok');
+    } else {
+      if (S.parcels.length >= MAX_PARCELS) { toast(`En fazla ${MAX_PARCELS} arsa planlanabilir.`); return; }
+      const used = new Set(S.parcels.map((p) => p.name));
+      let n = S.parcels.length, name = 'Arsa ' + letter(n);
+      while (used.has(name)) name = 'Arsa ' + letter(++n % 26);
+      S.parcels.push({ name, pts: draft.slice() }); S.active = S.parcels.length - 1;
+      log('Plan', `${name} eklendi (${draft.length} köşe).`, 'ok');
+    }
+    draft = []; gDraw.clearLayers(); setTool('draw');
+    changed('parcel');
+  }
+  map.on('click', (e) => {
+    const ll = [e.latlng.lat, e.latlng.lng];
+    if (tool === 'draw') {
+      if (draft.length >= 3 && map.latLngToContainerPoint(draft[0]).distanceTo(e.containerPoint) < 14) { finishDraw(); return; }
+      draft.push(ll); gDraw.clearLayers();
+      L.polyline(draft, { color: '#f2c14e', weight: 2, dashArray: '4 4' }).addTo(gDraw);
+      draft.forEach((p) => L.circleMarker(p, { radius: 5, color: '#1d1604', fillColor: '#f2c14e', fillOpacity: 1, weight: 2 }).addTo(gDraw));
+    } else if (tool === 'home') { addHome(ll); setTool('home'); }
+    else if (tool === 'poi') { if (S.pois.length >= 60) return toast('En fazla 60 ilgi noktası eklenebilir.'); S.pois.push(ll); changed('poi'); }
+    else if (tool === 'obstacle') { if (S.obstacles.length >= 60) return toast('En fazla 60 engel eklenebilir.'); S.obstacles.push({ lat: ll[0], lon: ll[1], h: 15 }); changed('obstacle'); }
+  });
+  document.addEventListener('keydown', (e) => {
+    const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
+    if (e.key === 'Escape' && tool) setTool(tool);
+    else if (e.key === 'Enter' && tool === 'draw' && !typing) finishDraw();
+    else if (e.key === ' ' && !typing && document.activeElement?.tagName !== 'BUTTON' && R && !R.error) { e.preventDefault(); toggleSim(); }
+  });
+  function addHome(ll) {
+    if (S.homes.length >= MAX_HOMES) { toast(`En fazla ${MAX_HOMES} kalkış noktası eklenebilir.`); return; }
+    S.homes.push({ name: 'Kalkış ' + (S.homes.length + 1), ll });
+    log('Plan', `Kalkış noktası K${S.homes.length} eklendi.`, 'ok');
+    changed('home');
+  }
+  function removeHome(i) {
+    if (S.homes.length <= 1) { toast('En az bir kalkış noktası gerekli.'); return; }
+    const nm = S.homes[i].name;
+    S.homes.splice(i, 1);
+    S.drones.forEach((d) => { if (d.manualHome >= i) d.manualHome = Math.max(0, d.manualHome - (d.manualHome === i ? 0 : 1)); if (d.manualHome >= S.homes.length) d.manualHome = 0; });
+    log('Plan', `${nm} kalkış noktası silindi.`, null);
+    changed('home'); renderFleet();
+  }
+  function removeParcel(i) {
+    if (S.parcels.length <= 1) { toast('En az bir arsa gerekli.'); return; }
+    const nm = S.parcels[i].name;
+    S.parcels.splice(i, 1);
+    S.active = Math.min(S.active, S.parcels.length - 1);
+    S.drones.forEach((d) => { if (d.manualParcel === i) d.manualParcel = -1; else if (d.manualParcel > i) d.manualParcel--; });
+    log('Plan', `${nm} silindi.`, null);
+    changed('parcel'); renderFleet();
+  }
+  $('#btnAddParcel').addEventListener('click', () => { redrawIdx = -1; if (tool !== 'draw') setTool('draw'); });
+  $('#btnAddHome').addEventListener('click', () => { if (tool !== 'home') setTool('home'); });
+
+  /* ---------- Koordinata git ---------- */
+  $('#btnGoto').addEventListener('click', gotoCoord);
+  $('#gotoInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') gotoCoord(); });
+  function gotoCoord() {
+    const parts = $('#gotoInput').value.split(/[,;\s]+/).filter(Boolean).map((x) => Number(x.replace(',', '.')));
+    const help = $('#gotoHelp');
+    if (parts.length !== 2 || !isLL(parts)) { help.textContent = 'Koordinat okunamadı. Örnek: 41.1105, 28.1620'; help.style.color = 'var(--crit)'; return; }
+    help.textContent = 'Harita taşındı. Yeni arsa için Arsa ekle aracını kullanın.'; help.style.color = '';
+    map.setView(parts, 17);
+  }
+
+  /* ---------- Arazi sekmesi ---------- */
+  function renderArazi() {
+    const tot = S.parcels.reduce((a, p) => a + Engine.polygonStats(p.pts).areaHa, 0);
+    $('#parcelStats').replaceChildren(
+      h('div', null, h('b', { text: fmt(tot, 1) }), h('span', { text: 'hektar toplam' })),
+      h('div', null, h('b', { text: S.parcels.length }), h('span', { text: 'arsa' })),
+      h('div', null, h('b', { text: S.homes.length }), h('span', { text: 'kalkış noktası' })));
+    $('#parcelList').replaceChildren(...S.parcels.map((p, i) => {
+      const st = Engine.polygonStats(p.pts), id = 'pn' + i;
+      const nameIn = h('input', { id, type: 'text', value: p.name, maxlength: 24, autocomplete: 'off', 'aria-label': `Arsa ${letter(i)} adı` });
+      nameIn.addEventListener('click', (e) => e.stopPropagation());
+      nameIn.addEventListener('change', () => { p.name = nameIn.value.trim().slice(0, 24) || 'Arsa ' + letter(i); changed('parcel'); });
+      const row = h('div', { class: 'row-item selectable' + (i === S.active ? ' active' : ''), role: 'button', tabindex: 0, 'aria-pressed': i === S.active, 'aria-label': `${p.name} arsasını seç` },
+        h('span', { class: 'tagp', text: letter(i) }),
+        h('div', { class: 'grow' }, nameIn, h('div', { class: 'sub num', text: `${fmt(st.areaHa, 1)} ha, ${fmt(st.perimM / 1000, 2)} km çevre, ${p.pts.length} köşe` })),
+        h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': `${p.name} sınırını yeniden çiz`, onclick: (e) => { e.stopPropagation(); redrawIdx = i; tool = null; setTool('draw'); } }, icon('pencil-simple')),
+        h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': `${p.name} arsasına odaklan`, onclick: (e) => { e.stopPropagation(); map.fitBounds(L.latLngBounds(p.pts), { padding: [40, 40] }); } }, icon('crosshair')),
+        h('button', { class: 'btn icon ghost danger', type: 'button', 'aria-label': `${p.name} sil`, disabled: S.parcels.length <= 1, onclick: (e) => { e.stopPropagation(); removeParcel(i); } }, icon('trash')));
+      const sel = () => { S.active = i; drawParcels(); renderArazi(); save(); };
+      row.addEventListener('click', sel);
+      row.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === row) { e.preventDefault(); sel(); } });
+      return row;
+    }));
+    $('#homeList').replaceChildren(...S.homes.map((x, i) => {
+      const nameIn = h('input', { type: 'text', value: x.name, maxlength: 24, autocomplete: 'off', 'aria-label': `Kalkış noktası K${i + 1} adı` });
+      nameIn.addEventListener('change', () => { x.name = nameIn.value.trim().slice(0, 24) || 'Kalkış ' + (i + 1); changed('home'); renderFleet(); });
+      return h('div', { class: 'row-item' }, h('span', { class: 'tagk', text: 'K' + (i + 1) }),
+        h('div', { class: 'grow' }, nameIn, h('div', { class: 'sub num', text: `${x.ll[0].toFixed(5)}, ${x.ll[1].toFixed(5)}` })),
+        h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': `${x.name} noktasına odaklan`, onclick: () => map.setView(x.ll, Math.max(map.getZoom(), 16)) }, icon('crosshair')),
+        h('button', { class: 'btn icon ghost danger', type: 'button', 'aria-label': `${x.name} sil`, disabled: S.homes.length <= 1, onclick: () => removeHome(i) }, icon('trash')));
+    }));
+    const ol = $('#obsList');
+    ol.replaceChildren(...(S.obstacles.length ? S.obstacles.map((o, i) => {
+      const id = 'obs' + i;
+      const inp = h('input', { id, type: 'number', min: 0, max: 300, step: 1, value: o.h, style: 'width:84px;min-height:36px;border-radius:6px;border:1px solid var(--line-strong);background:var(--bg);padding:0 8px', class: 'num' });
+      inp.addEventListener('change', () => { const v = Number(inp.value); if (Number.isFinite(v) && v >= 0 && v <= 300) { o.h = v; changed('obstacle'); } else inp.value = o.h; });
+      return h('div', { class: 'row-item' }, h('span', { class: 'pin-obs', style: 'width:22px;height:22px;font-size:13px' }, icon('tree-evergreen', true)),
+        h('div', { class: 'grow' }, h('label', { for: id, text: `Engel ${i + 1} yüksekliği` }), h('div', { class: 'sub num', text: `${o.lat.toFixed(5)}, ${o.lon.toFixed(5)}` })),
+        inp, h('span', { class: 'sub', text: 'm' }),
+        h('button', { class: 'btn icon ghost danger', type: 'button', 'aria-label': `Engel ${i + 1} sil`, onclick: () => { S.obstacles.splice(i, 1); changed('obstacle'); } }, icon('trash')));
+    }) : [h('div', { class: 'empty', text: 'Engel yok. Haritada Engel ekle aracıyla ağaç veya direk işaretleyin.' })]));
+    $('#poiList').replaceChildren(...(S.pois.length ? S.pois.map((p, i) => h('div', { class: 'row-item' },
+      h('span', { class: 'num', style: 'font-weight:700;width:22px;text-align:center', text: i + 1 }),
+      h('div', { class: 'grow' }, h('div', { text: `İlgi noktası ${i + 1}` }), h('div', { class: 'sub num', text: `${p[0].toFixed(5)}, ${p[1].toFixed(5)}` })),
+      h('button', { class: 'btn icon ghost danger', type: 'button', 'aria-label': `İlgi noktası ${i + 1} sil`, onclick: () => { S.pois.splice(i, 1); changed('poi'); } }, icon('trash'))))
+      : [h('div', { class: 'empty', text: 'İlgi noktası yok. Haritada İlgi noktası aracıyla ekleyin.' })]));
+  }
+
+  /* ---------- Filo sekmesi ---------- */
+  $('#presetSelect').replaceChildren(...Engine.PRESETS.map((p) => h('option', { value: p.id, text: p.name })));
+  $('#btnAddDrone').addEventListener('click', () => {
+    if (S.drones.length >= MAX_DRONES) { toast(`En fazla ${MAX_DRONES} drone planlanabilir.`); return; }
+    const used = new Set(S.drones.map((d) => d.name));
+    const name = NAMES.find((n) => !used.has(n)) || 'Drone ' + (S.drones.length + 1);
+    S.drones.push(newDrone($('#presetSelect').value, name));
+    expanded = S.drones.length - 1;
+    log(S.drones.length - 1, `${name} filoya eklendi (${preset($('#presetSelect').value).name}).`, 'ok');
+    changed('fleet');
+  });
+  function renderFleet() {
+    const manual = S.mission.selection === 'manual';
+    $('#droneList').replaceChildren(...S.drones.map((d, i) => {
+      const open = expanded === i;
+      const sp = Engine.characteristicSpeeds(d, 1.225);
+      const enId = 'en' + i;
+      const en = h('input', { type: 'checkbox', id: enId, checked: d.enabled !== false });
+      en.addEventListener('change', () => { d.enabled = en.checked; changed('fleet', true); });
+      const head = h('div', { class: 'drone-head' },
+        h('span', { class: 'swatch', style: `background:${dColor(i)}` }),
+        h('div', { class: 'grow' }, h('div', { class: 'name', text: d.name }),
+          h('div', { class: 'sub', style: 'font-size:12px;color:var(--muted)', text: `${d.type === 'fixed' ? 'Sabit kanat' : 'Çok rotorlu'}, ${d.source === 'fuel' ? fmt(d.fuelL, 1) + ' L benzin' : `${fmt(d.capacityWh)} Wh × ${fmt(d.batteries)}`}, menzil hızı ${fmt(sp.vRange, 1)} m/s` })),
+        h('label', { class: 'check', for: enId, title: 'Planlamada kullanılabilir' }, en, h('span', { class: 'sr-only', text: `${d.name} kullanılabilir` })),
+        h('button', { class: 'btn icon ghost', type: 'button', 'aria-expanded': open, 'aria-label': `${d.name} ayarlarını ${open ? 'kapat' : 'aç'}`, onclick: () => { expanded = open ? -1 : i; renderFleet(); } }, icon(open ? 'caret-up' : 'caret-down')),
+        h('button', { class: 'btn icon ghost danger', type: 'button', 'aria-label': `${d.name} filodan çıkar`, disabled: S.drones.length <= 1, onclick: () => { const nm = d.name; S.drones.splice(i, 1); expanded = -1; selected = Math.min(selected, S.drones.length - 1); log(null, `${nm} filodan çıkarıldı.`); changed('fleet'); } }, icon('trash')));
+      const card = h('div', { class: 'drone-card' }, head);
+      if (manual) {
+        const pSel = h('select', { 'aria-label': `${d.name} görev arsası` }, h('option', { value: -1, text: 'Görev verme' }), ...S.parcels.map((p, j) => h('option', { value: j, text: `${letter(j)}  ${p.name}` })));
+        pSel.value = d.manualParcel;
+        pSel.addEventListener('change', () => { d.manualParcel = Number(pSel.value); changed('fleet', true); });
+        const hSel = h('select', { 'aria-label': `${d.name} kalkış noktası` }, ...S.homes.map((x, j) => h('option', { value: j, text: `K${j + 1}  ${x.name}` })));
+        hSel.value = Math.min(d.manualHome, S.homes.length - 1);
+        hSel.addEventListener('change', () => { d.manualHome = Number(hSel.value); changed('fleet', true); });
+        card.append(h('div', { class: 'fields', style: 'padding:0 10px 10px' },
+          h('div', { class: 'field' }, h('label', { text: 'Arsa' }), pSel), h('div', { class: 'field' }, h('label', { text: 'Kalkış' }), hSel)));
+      }
+      if (!open) return card;
+      const body = h('div', { class: 'drone-body' });
+      const idN = 'dn' + i, idT = 'dt' + i, idS = 'ds' + i, idP = 'dp' + i;
+      const nameIn = h('input', { id: idN, type: 'text', value: d.name, maxlength: 24, autocomplete: 'off' });
+      nameIn.addEventListener('change', () => { d.name = nameIn.value.trim().slice(0, 24) || NAMES[i]; changed('fleet'); });
+      const typeSel = h('select', { id: idT }, h('option', { value: 'multi', text: 'Çok rotorlu' }), h('option', { value: 'fixed', text: 'Sabit kanat / VTOL' }));
+      typeSel.value = d.type;
+      typeSel.addEventListener('change', () => { d.type = typeSel.value === 'fixed' ? 'fixed' : 'multi'; if (d.type === 'fixed' && !(d.wingArea > 0)) Object.assign(d, { wingArea: 0.85, vStall: 14, cd0: 0.035, ar: 9 }); renderFleet(); changed('fleet', true); });
+      const srcSel = h('select', { id: idS }, h('option', { value: 'battery', text: 'Elektrik (batarya)' }), h('option', { value: 'fuel', text: 'Benzin (yakıt)' }));
+      srcSel.value = d.source;
+      srcSel.addEventListener('change', () => { d.source = srcSel.value === 'fuel' ? 'fuel' : 'battery'; if (d.source === 'fuel' && !(d.fuelL > 0)) d.fuelL = 4; renderFleet(); changed('fleet', true); });
+      const preSel = h('select', { id: idP }, ...Engine.PRESETS.map((p) => h('option', { value: p.id, text: p.name })));
+      preSel.value = d.preset;
+      preSel.addEventListener('change', () => { const keep = { name: d.name, enabled: d.enabled, manualParcel: d.manualParcel, manualHome: d.manualHome }; Object.assign(d, newDrone(preSel.value, d.name), keep); renderFleet(); changed('fleet', true); });
+      body.append(h('div', { class: 'fields', style: 'margin-top:12px' },
+        h('div', { class: 'field wide' }, h('label', { for: idN, text: 'Ad' }), nameIn),
+        h('div', { class: 'field wide' }, h('label', { for: idP, text: 'Hazır sınıftan doldur' }), preSel, h('span', { class: 'help', text: 'Seçince aşağıdaki değerler o sınıfın yaklaşık değerleriyle değişir.' })),
+        h('div', { class: 'field' }, h('label', { for: idT, text: 'Gövde tipi' }), typeSel),
+        h('div', { class: 'field' }, h('label', { for: idS, text: 'Enerji kaynağı' }), srcSel)));
+      DRONE_GROUPS.forEach((g) => {
+        if (g.only && g.only !== d.type) return;
+        const fs = g.f.filter((f) => !f.only || f.only === d.source);
+        const grid = h('div', { class: 'fields' });
+        renderFields(grid, d, fs, () => changed('fleet', true));
+        body.append(h('h3', { text: g.t }), grid);
+      });
+      card.append(body);
+      return card;
+    }));
+  }
+
+  /* ---------- Görev, ortam, maliyet sekmeleri ---------- */
+  const MODE_HELP = {
+    coverage: 'Her arsa bindirmeli şeritlerle taranır. Arsa, ona atanan dronelar arasında iş hızı ve enerji verimine göre bölüşülür.',
+    perimeter: 'Dronelar arsa sınırlarının içinden zaman kaydırmalı tur atar. Sürekli gözlemde batarya değişimleri sırasında da devriye sürer.',
+    poi: 'İlgi noktaları bulundukları arsaya, oradan da dronelara bölüştürülür; her drone için en kısa sıra (en yakın komşu ve 2-opt) bulunur.',
+  };
+  const SEL_HELP = {
+    auto: 'Her drone, arsa ve kalkış noktası çifti için rüzgâr, menzil, iş hızı, Wh başına iş, yedek batarya ve şarj süresi hesaplanır. Önceliğe göre en iyi dronelar seçilir, gereksiz olanlar yedekte kalır.',
+    manual: 'Filo sekmesinde her drone için arsa ve kalkış noktasını siz seçersiniz.',
+  };
+  function renderMission() {
+    $$('#modeSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === S.mission.mode));
+    $$('#selSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.sel === S.mission.selection));
+    $('#modeHelp').textContent = MODE_HELP[S.mission.mode];
+    $('#selHelp').textContent = SEL_HELP[S.mission.selection];
+    $('#continuous').checked = !!S.mission.continuous;
+    $('#weight').value = S.mission.weight;
+    $('#weightVal').textContent = S.mission.weight <= 20 ? 'Tasarruf ağırlıklı' : S.mission.weight >= 80 ? 'Hız ağırlıklı' : 'Dengeli';
+    $('#angleAuto').checked = S.mission.angleMode === 'auto';
+    $('#angle').value = S.mission.angle;
+    $('#angle').disabled = S.mission.angleMode === 'auto';
+    $('#layering').checked = !!S.mission.layering;
+    updateAngleText();
+  }
+  function updateAngleText() {
+    const a = R && !R.error ? R.angle : S.mission.angle;
+    $('#angleVal').textContent = S.mission.angleMode === 'auto' ? `Otomatik: her arsa için ayrı seçilir (ilk arsada ${fmt((90 - a + 360) % 180)}°, kuzeyden saat yönünde)` : `Şerit yönü: ${fmt((90 - S.mission.angle + 360) % 180)}° (kuzeyden saat yönünde)`;
+  }
+  $$('#modeSeg button').forEach((b) => b.addEventListener('click', () => { S.mission.mode = b.dataset.mode; renderMission(); changed('mission'); log('Plan', 'Görev türü: ' + b.textContent.trim() + '.', null); }));
+  $$('#selSeg button').forEach((b) => b.addEventListener('click', () => { S.mission.selection = b.dataset.sel; renderMission(); renderFleet(); changed('mission'); }));
+  $('#continuous').addEventListener('change', (e) => { S.mission.continuous = e.target.checked; changed('mission'); });
+  $('#weight').addEventListener('input', (e) => { S.mission.weight = Number(e.target.value); renderMission(); changed('mission'); });
+  $('#angleAuto').addEventListener('change', (e) => { S.mission.angleMode = e.target.checked ? 'auto' : 'manual'; if (!e.target.checked && R && !R.error) S.mission.angle = R.angle; renderMission(); changed('mission'); });
+  $('#angle').addEventListener('input', (e) => { S.mission.angle = Number(e.target.value); updateAngleText(); changed('mission'); });
+  $('#layering').addEventListener('change', (e) => { S.mission.layering = e.target.checked; changed('mission'); });
+
+  /* ---------- Hesap: Web Worker (arayüz donmaz), olmazsa ana iş parçacığı ---------- */
+  let worker = null, busy = false, pending = null, reqSeq = 0, watchdog = null;
+  function makeWorker() {
+    try {
+      const src = document.getElementById('motor').textContent;
+      const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      const w = new Worker(url);
+      URL.revokeObjectURL(url);
+      w.onmessage = (e) => onResult(e.data.result, e.data.id);
+      w.onerror = (e) => { e.preventDefault?.(); worker = null; busy = false; log('Sistem', 'Arka plan hesaplayıcısı açılamadı; hesap ana sayfada yapılacak.', 'warn'); recompute(); };
+      return w;
+    } catch (e) { return null; }
+  }
+  worker = makeWorker();
+  let timer = null;
+  function changed(what, keepFleetUi) {
+    save();
+    if (['parcel', 'home', 'poi', 'obstacle'].includes(what)) { drawParcels(); drawMarks(); renderArazi(); }
+    if (what === 'fleet' && !keepFleetUi) renderFleet();
+    clearTimeout(timer);
+    timer = setTimeout(recompute, 160);
+  }
+  const inputForEngine = () => JSON.parse(JSON.stringify({ parcels: S.parcels, homes: S.homes, pois: S.pois, obstacles: S.obstacles, drones: S.drones, env: S.env, mission: S.mission, costs: S.costs }));
+  let t0 = 0;
+  function setBusy(on) {
+    if (on) $('#hdrStatus').replaceChildren(h('span', { class: 'busy', 'aria-hidden': 'true' }), h('span', { text: 'Plan hesaplanıyor' }));
+  }
+  function recompute() {
+    const input = inputForEngine();
+    if (worker) {
+      if (busy) { pending = input; return; }
+      busy = true; t0 = performance.now(); setBusy(true);
+      const id = ++reqSeq;
+      worker.postMessage({ id, input });
+      clearTimeout(watchdog);
+      watchdog = setTimeout(() => {
+        // Hesap kilitlendiyse çalışanı yeniden başlat, arayüz yine de çalışır.
+        if (busy && reqSeq === id) { worker.terminate(); worker = makeWorker(); busy = false; pending = null; onResult({ error: 'Hesap 25 saniyeyi aştı. Arsayı küçültün, GSD hedefini büyütün veya gözlem süresini kısaltın.' }); }
+      }, 25000);
+      return;
+    }
+    t0 = performance.now(); setBusy(true);
+    setTimeout(() => { let r; try { r = Engine.planMission(input); } catch (err) { r = { error: 'Plan hesaplanamadı: ' + err.message }; } onResult(r); }, 0);
+  }
+  function onResult(result) {
+    busy = false; clearTimeout(watchdog);
+    if (pending) { const p = pending; pending = null; busy = true; worker.postMessage({ id: ++reqSeq, input: p }); return; }
+    const ms = performance.now() - t0;
+    R = result;
+    toLL = R && !R.error ? Engine.projector(R.origin[0], R.origin[1]).toLL : null;
+    if (R && !R.error && (!R.drones[selected] || !R.drones[selected].used)) { const f = R.drones.findIndex((d) => d.used); selected = f < 0 ? 0 : f; }
+    stopSim(true);
+    drawRoutes(); renderResults(); renderSimDrones(); updateWind(); updateAngleText();
+    if (R.error) { $('#hdrStatus').replaceChildren(icon('warning-octagon', true), h('span', { text: R.error })); $('#hdrStatus').firstChild.style.color = 'var(--crit)'; log('Plan', R.error, 'crit', { replacePlan: true }); return; }
+    const crit = R.warnings.filter((w) => w.level === 'crit').length;
+    const T = R.totals;
+    $('#hdrStatus').replaceChildren(icon(crit ? 'warning-octagon' : 'check-circle', true),
+      h('span', null, h('strong', { text: modeName(R.mode) }), `, ${S.parcels.length} arsa, ${T.usedDrones}/${S.drones.length} drone, ${R.continuous ? 'ortalama tekrar ' + fmtDur(T.revisitSec) : 'döngü ' + fmtDur(T.makespanSec)}`));
+    $('#hdrStatus').firstChild.style.color = crit ? 'var(--crit)' : 'var(--ok)';
+    log('Plan', `Plan güncellendi: ${modeName(R.mode).toLowerCase()}, ${T.usedDrones} drone seçildi, ${R.continuous ? fmt(S.mission.opsHours, 1) + ' saatlik sürekli gözlem' : 'tek döngü'} (${fmt(ms)} ms).`, crit ? 'crit' : 'ok', { replacePlan: true });
+  }
+  const modeName = (m) => ({ coverage: 'Alan tarama', perimeter: 'Çevre devriyesi', poi: 'Noktasal kontrol' }[m]);
+
+  function updateWind() {
+    $('#windArrow').style.transform = `rotate(${(S.env.windFrom + 180) % 360}deg)`;
+    const used = R && !R.error ? R.drones.filter((d) => d.used) : [];
+    const top = used.length ? Math.max(...used.map((d) => d.wAlt)) : S.env.windSpeed;
+    $('#windText').textContent = `${fmt(S.env.windSpeed, 1)} m/s`;
+    $('#windSub').textContent = `${fmt(S.env.windFrom)}° yönünden, uçuş irtifasında ${fmt(top, 1)} m/s`;
+  }
+
+  /* ---------- Sonuç paneli ---------- */
+  function delta(opt, base) {
+    if (!(base > 0) || !(opt >= 0)) return null;
+    const p = (base - opt) / base * 100, good = p >= 0;
+    return h('div', { class: 'delta ' + (good ? 'good' : 'bad') }, icon(good ? 'trend-down' : 'trend-up'), `%${fmt(Math.abs(p), 0)} ${good ? 'daha az' : 'daha fazla'}`);
+  }
+  const workUnit = () => (S.mission.mode === 'coverage' ? { e: 'Wh/ha', r: 'ha/sa', ef: 1e4, rf: 3600 / 1e4 } : { e: 'Wh/km', r: 'km/sa', ef: 1e3, rf: 3.6 });
+  function renderResults() {
+    const box = $('#results');
+    if (!R || R.error) { box.replaceChildren(h('h2', { text: 'Plan özeti' }), h('div', { class: 'warn crit' }, icon('warning-octagon', true), h('span', { text: R ? R.error : 'Plan bekleniyor.' }))); return; }
+    const T = R.totals, B = R.baseline;
+    const summary = h('div', { class: 'summary' },
+      R.continuous
+        ? h('div', null, h('b', { text: fmtDur(T.revisitSec) }), h('span', { text: R.mode === 'perimeter' ? 'ortalama ziyaret aralığı' : 'ortalama tekrar aralığı' }), h('div', { class: 'delta', style: 'color:var(--muted)', text: `en uzun ${fmtDur(T.revisitMaxSec)}` }))
+        : h('div', null, h('b', { text: fmtDur(T.makespanSec) }), h('span', { text: 'bir tam döngü süresi' }), R.mode !== 'perimeter' ? delta(T.makespanSec, B.timeSec) : null),
+      h('div', null, h('b', { text: fmt(T.energyWh) + ' Wh' }), h('span', { text: 'bir döngünün enerjisi' }), R.mode !== 'perimeter' ? delta(T.energyWh, B.energyWh) : null),
+      h('div', null, h('b', { text: `${T.usedDrones} / ${S.drones.length}` }), h('span', { text: 'seçilen drone' })),
+      h('div', null, h('b', { text: fmt(T.dailyTL) + ' TL' }), h('span', { text: `günlük maliyet (${fmt(S.mission.opsHours, 1)} saat)` })));
+    const costLine = h('div', { class: 'costline' },
+      h('span', null, 'Elektrik ', h('b', { text: fmt(T.dailyElecTL) + ' TL' })),
+      T.dailyFuelL > 0 ? h('span', null, 'Yakıt ', h('b', { text: `${fmt(T.dailyFuelL, 1)} L, ${fmt(T.dailyFuelTL)} TL` })) : null,
+      h('span', null, 'Batarya aşınması ', h('b', { text: fmt(T.dailyWearTL) + ' TL' })),
+      h('span', null, 'Günlük enerji ', h('b', { text: fmt(T.dailyWh / 1000, 2) + ' kWh' })),
+      R.continuous && T.waitSec > 0 ? h('span', null, 'Şarj beklemesi ', h('b', { text: fmtDur(T.waitSec) })) : null,
+      h('span', null, 'Asgari güvenli irtifa ', h('b', { text: fmt(R.minAlt) + ' m' })));
+
+    const warns = R.warnings.length ? R.warnings.map((w) => h('div', { class: 'warn ' + w.level }, icon(w.level === 'crit' ? 'warning-octagon' : 'warning', true),
+      h('span', null, h('span', { class: 'lvl', text: w.level === 'crit' ? 'Kritik: ' : 'Dikkat: ' }), w.msg)))
+      : [h('div', { class: 'warn ok' }, icon('check-circle', true), h('span', { text: 'Rüzgâr, irtifa, menzil ve batarya sınırları içinde. Plan uçuşa uygun görünüyor.' }))];
+
+    const U = workUnit();
+    const selRows = R.drones.map((d, i) => {
+      const parcelsTxt = d.parcelIdx.map((pi) => `${letter(pi)} ${R.parcels[pi].name}`).join(', ');
+      const home = d.homeIdx >= 0 ? `K${d.homeIdx + 1} ${R.homes[d.homeIdx].name}` : '';
+      return h('div', { class: 'sel-row' + (d.used ? '' : ' off') },
+        h('span', { class: 'swatch', style: `background:${dColor(i)};margin-top:4px` }),
+        h('b', { text: d.name }),
+        h('span', { class: 'badge ' + (d.used ? 'on' : 'off'), text: d.used ? 'Seçildi' : 'Yedekte' }),
+        h('div', { class: 'why', text: d.used
+          ? `${parcelsTxt}, kalkış ${home}.` + (d.metric ? ` ${fmt(d.metric.ePer * U.ef, 1)} ${U.e}, ${fmt(d.metric.rateEff * U.rf, 1)} ${U.r} (bataryalar dahil).` : '')
+          : d.reason || '' }));
+    });
+
+    const parcelRows = R.parcels.map((p) => h('div', { class: 'pres' },
+      h('div', { class: 'pres-head' }, h('span', { class: 'tagp', text: letter(p.idx) }), h('b', { text: p.name }), h('span', { class: 'sub', style: 'color:var(--muted);font-size:12px', text: `${fmt(p.areaHa, 1)} ha` })),
+      p.drones.length ? h('div', { class: 'dres-grid' },
+        h('div', null, h('b', { text: fmtDur(p.cycleSec) }), 'bir döngü'),
+        h('div', null, h('b', { text: fmtDur(p.revisitAvgSec) }), R.mode === 'perimeter' ? 'ziyaret aralığı' : 'ort. tekrar'),
+        h('div', null, h('b', { text: R.continuous ? fmt(p.cycles) : fmt(p.onStationMean, 1) }), R.continuous ? (R.mode === 'perimeter' ? 'tur' : 'döngü') : 'görevde drone'),
+        R.continuous ? h('div', null, h('b', { text: fmt(p.onStationMean, 2) }), 'ort. görevdeki drone') : null,
+        R.continuous && R.mode === 'perimeter' ? h('div', null, h('b', { text: fmtDur(p.gapSec) }), 'boş kalınan süre') : null,
+        R.mode === 'coverage' && p.angle !== null ? h('div', null, h('b', { text: fmt((90 - p.angle + 360) % 180) + '°' }), 'şerit yönü') : null)
+        : h('div', { class: 'sub', style: 'color:var(--crit);font-size:12.5px;margin-top:6px', text: 'Bu arsaya drone atanamadı.' }),
+      h('div', { class: 'chips' }, ...p.drones.map((i) => h('span', { class: 'chip' }, h('span', { class: 'swatch', style: `background:${dColor(i)}` }), `${R.drones[i].name} ${R.drones[i].alt} m`)))));
+
+    const dlist = R.drones.filter((d) => d.used).map((d) => {
+      const i = d.idx;
+      const card = h('div', { class: 'dres', role: 'button', tabindex: 0, 'aria-pressed': i === selected, 'aria-label': `${d.name} ayrıntılarını göster` });
+      const sel = () => { selected = i; renderResults(); drawRoutes(); renderSimDrones(); updateGauges(); };
+      card.addEventListener('click', sel);
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel(); } });
+      const dl = h('button', { class: 'btn', type: 'button', onclick: (e) => { e.stopPropagation(); exportPlan(d); } }, icon('download-simple'), 'Görev dosyası');
+      card.append(
+        h('div', { class: 'dres-head' }, h('span', { class: 'swatch', style: `background:${dColor(i)}` }), h('b', { text: d.name }),
+          h('span', { class: 'dres-alt' }, `${d.alt} `, h('small', { text: 'm irtifa' }))),
+        h('div', { class: 'dres-grid' },
+          h('div', null, h('b', { text: fmtDur(d.timeSec) }), 'bir döngü'),
+          h('div', null, h('b', { text: fmt(d.energyWh) + ' Wh' }), d.source === 'fuel' ? 'yakıt enerjisi' : 'döngü enerjisi'),
+          h('div', null, h('b', { text: fmt(d.distM / 1000, 2) + ' km' }), 'yol'),
+          h('div', null, h('b', { text: fmt(d.va, 1) + ' m/s' }), 'hava hızı'),
+          h('div', null, h('b', { text: fmt(d.gsdCm, 1) + ' cm' }), 'piksel başına'),
+          R.continuous ? h('div', null, h('b', { text: fmt(d.contSorties) }), `sorti / ${fmt(S.mission.opsHours, 1)} sa`)
+            : R.mode === 'perimeter' ? h('div', null, h('b', { text: fmt(d.laps) }), 'tur / batarya')
+              : h('div', null, h('b', { text: fmt(d.sorties) }), 'sorti')),
+        h('div', { class: 'dres-foot' }, h('span', { class: 'sub', text: R.continuous ? `Şarj beklemesi ${fmtDur(d.waitSec) === '-' ? 'yok' : fmtDur(d.waitSec)}` : `Tek batarya azami kullanım %${fmt(Math.min(100, d.maxUsePct))}` }), dl));
+      return card;
+    });
+
+    const sd = R.drones[selected] && R.drones[selected].used ? R.drones[selected] : R.drones.find((d) => d.used);
+    const sp = sd ? R.parcels[sd.parcelIdx[0]] : null;
+    box.replaceChildren(...[
+      h('h2', { text: 'Plan özeti' }), summary,
+      R.mode !== 'perimeter' && !R.continuous ? h('p', { class: 'chart-cap', text: 'Farklar, aynı dronelarla kuzey-güney şeritlerde, tek irtifada ve azami hızda uçan saf plana göredir.' }) : null,
+      costLine,
+      h('h2', { text: 'Uyarılar' }), h('div', { class: 'warns' }, warns),
+      h('h2', { text: 'Drone seçimi' }), ...selRows,
+      h('h2', { text: 'Arsalar' }), ...parcelRows,
+      sd && sp && R.continuous ? [h('h2', { text: `Görevdeki drone sayısı: ${sp.name}` }), chartBox('cOn', 'Arsada o an çekim veya devriye yapan drone sayısı. Sıfıra düşen yerler gözlem boşluğudur.')] : null,
+      h('h2', { text: 'Filo planı' }), ...dlist,
+      sd ? [
+        h('h2', { text: `Güç ve hız: ${sd.name}` }), chartBox('cPower', powerCaption(sd)),
+        h('h2', { text: 'Enerji dağılımı (bir döngü)' }), energyStacks(),
+        h('h2', { text: `İrtifa profili: ${sd.name}` }), chartBox('cAlt', 'Yerden yükseklik (m). İniş ve kalkışlar batarya değişimi veya bekleme anlarıdır.'),
+        h('h2', { text: `Batarya: ${sd.name}` }), chartBox('cBat', 'Kalan batarya (%). Kesikli çizgi rezerv sınırı.'),
+      ] : null,
+      methodNotes()].flat(2).filter(Boolean));
+    if (sd) {
+      drawPowerChart(sd);
+      drawTimeChart('cAlt', sd, (s) => s.z, 'm', null);
+      drawTimeChart('cBat', sd, (s) => s.bat, '%', 100 - 100 * sd.usable / (sd.full || 1), [0, 100]);
+      if (sp && R.continuous) drawSeriesChart('cOn', sp);
+    }
+  }
+  function powerCaption(d) {
+    const sp = d.speeds;
+    return `En uzun havada kalma ${fmt(sp.vEndurance, 1)} m/s, en uzun menzil ${fmt(sp.vRange, 1)} m/s (${fmt(sp.whPerKm, 1)} Wh/km), seçilen hava hızı ${fmt(d.va, 1)} m/s. Çekim bacaklarında yer hızı kamera nedeniyle en çok ${fmt(d.vgCap, 1)} m/s.`;
+  }
+  const chartBox = (id, cap) => h('div', { class: 'chart' }, h('canvas', { id, role: 'img', 'aria-label': cap }), h('p', { class: 'chart-cap', text: cap }));
+  function energyStacks() {
+    const parts = [['climb', 'Tırmanma ve iniş', 'var(--seg-4)'], ['cruise', 'Seyir', 'var(--seg-1)'], ['turn', 'Dönüşler', 'var(--seg-2)'], ['hover', 'Askıda bekleme', 'var(--seg-3)']];
+    const legend = h('div', { class: 'chart-legend' }, ...parts.map((p) => h('span', null, h('i', { style: `background:${p[2]}` }), p[1])));
+    const rows = R.drones.filter((d) => !d.empty).map((d) => {
+      const tot = d.energyWh || 1;
+      const bar = h('div', { class: 'stack-bar', role: 'img', 'aria-label': `${d.name}: ` + parts.map((p) => `${p[1]} ${fmt(d.parts[p[0]])} Wh`).join(', ') });
+      parts.forEach((p) => {
+        const v = d.parts[p[0]]; if (v <= 0) return;
+        const seg = h('span', { style: `flex:${v / tot};background:${p[2]}` });
+        seg.addEventListener('mousemove', (e) => showTip(e.clientX, e.clientY, [h('b', { text: d.name }), h('br'), `${p[1]}: `, h('b', { text: `${fmt(v)} Wh` }), ` (%${fmt(v / tot * 100)})`]));
+        seg.addEventListener('mouseleave', hideTip);
+        bar.append(seg);
+      });
+      return h('div', { class: 'stack-row' }, h('span', { class: 'nm' }, h('span', { class: 'swatch', style: `background:${dColor(d.idx)}` }), d.name), bar, h('span', { class: 'val', text: fmt(d.energyWh) + ' Wh' }));
+    });
+    return h('div', null, legend, h('div', { class: 'stack' }, rows), h('p', { class: 'chart-cap', text: 'Dönüş payı yüksekse şerit yönünü uzun kenara çevirmek veya yan bindirmeyi azaltmak enerji kazandırır.' }));
+  }
+  function methodNotes() {
+    return h('details', { class: 'method' }, h('summary', { text: 'Hesap yöntemi' }), h('ul', null,
+      h('li', { text: 'Drone seçimi: her drone, arsa ve kalkış noktası çifti için rüzgâr sınırı, gidiş dönüş menzili, iş hızı (ha/sa veya km/sa), iş başına enerji ve yedek batarya ile şarj süresinin izin verdiği görev oranı hesaplanır. Önce her arsaya en uygun drone atanır, sonra öncelik ayarına göre amaç fonksiyonunu düşüren dronelar eklenir.' }),
+      h('li', { text: 'Sürekli gözlem: her drone, gözlem süresi boyunca döngüsünü tekrarlar. Batarya azalınca eve döner, şarjlı yedek varsa değiştirir, yoksa şarj bitene kadar bekler. Tekrar aralığı varsa iki döngü arasında iner ve bekler.' }),
+      h('li', { text: 'İrtifa: hedef GSD = irtifa × 2 tan(FOV/2) / piksel genişliği. Sonuç, en yüksek engel + güvenlik payı + kot farkı ile yasal sınır arasına sıkıştırılır; katman açıksa seçilen tüm dronelar arasında dikey ayrım verilir.' }),
+      h('li', { text: 'Güç: çok rotorlularda profil, indüklenmiş ve parazit güç bileşenli döner kanat modeli (Zeng ve ark., 2019); sabit kanatta CD0 + CL²/(πeAR) sürükleme kutupsalı. Hava yoğunluğu ISA ile rakım ve sıcaklıktan hesaplanır.' }),
+      h('li', { text: 'Rota: alan tarama biçerdöver şeritleridir; şerit yönü 0-180° arasında hızlı enerji ve süre tahminiyle aranır, yalnızca seçilen yön tam simüle edilir. İlgi noktaları en yakın komşu + 2-opt ile sıralanır.' }),
+      h('li', { text: 'Hesap tarayıcıda arka plan iş parçacığında (Web Worker) yapılır; büyük arsalarda da arayüz yanıt verir.' })));
+  }
+
+  /* ---------- Grafikler (canvas, ipucu katmanlı) ---------- */
+  const tip = $('#tip');
+  function showTip(x, y, kids) { tip.replaceChildren(...kids.map((k) => (k.nodeType ? k : document.createTextNode(k)))); tip.hidden = false; const r = tip.getBoundingClientRect(); tip.style.left = Math.min(window.innerWidth - r.width - 8, x + 14) + 'px'; tip.style.top = Math.max(8, y - r.height - 10) + 'px'; }
+  function hideTip() { tip.hidden = true; }
+  function setupCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 320, hh = cv.clientHeight || 170;
+    cv.width = w * dpr; cv.height = hh * dpr;
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w, h: hh };
+  }
+  function axes(ctx, w, hh, pad, xr, yr, xf, yf) {
+    ctx.strokeStyle = css('--line'); ctx.lineWidth = 1; ctx.fillStyle = css('--muted'); ctx.font = '11px "Chakra Petch", sans-serif';
+    const nt = 4;
+    for (let k = 0; k <= nt; k++) {
+      const yv = yr[0] + (yr[1] - yr[0]) * k / nt, y = pad.t + (hh - pad.t - pad.b) * (1 - k / nt);
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(yf(yv), pad.l - 6, y);
+    }
+    for (let k = 0; k <= nt; k++) {
+      const xv = xr[0] + (xr[1] - xr[0]) * k / nt, x = pad.l + (w - pad.l - pad.r) * k / nt;
+      ctx.textAlign = k === 0 ? 'left' : k === nt ? 'right' : 'center'; ctx.textBaseline = 'top'; ctx.fillText(xf(xv), x, hh - pad.b + 6);
+    }
+  }
+  function niceMax(v) { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+  const decimate = (arr, max) => { if (arr.length <= max) return arr; const st = arr.length / max, out = []; for (let i = 0; i < max; i++) out.push(arr[Math.floor(i * st)]); out.push(arr[arr.length - 1]); return out; };
+
+  function drawPowerChart(d) {
+    const cv = $('#cPower'); if (!cv) return;
+    const { ctx, w, h: hh } = setupCanvas(cv);
+    const s = d.spec, rho = d.rho, v0 = d.type === 'fixed' ? d.speeds.vMin : 0;
+    const pts = []; for (let v = v0; v <= s.vMax + 1e-9; v += 0.25) pts.push([v, Engine.power(s, v, rho)]);
+    const pad = { l: 46, r: 12, t: 10, b: 24 };
+    const ymax = niceMax(Math.max(...pts.map((p) => p[1])) * 1.05);
+    const xr = [0, s.vMax], X = (v) => pad.l + (w - pad.l - pad.r) * (v - xr[0]) / (xr[1] - xr[0]), Y = (p) => pad.t + (hh - pad.t - pad.b) * (1 - p / ymax);
+    axes(ctx, w, hh, pad, xr, [0, ymax], (v) => fmt(v) + ' m/s', (v) => fmt(v) + ' W');
+    ctx.strokeStyle = css('--d' + (d.idx % 6)); ctx.lineWidth = 2; ctx.beginPath();
+    pts.forEach((p, k) => (k ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1])))); ctx.stroke();
+    [[d.speeds.vEndurance, 'Dayanım'], [d.speeds.vRange, 'Menzil'], [d.va, 'Seçilen']].forEach(([v, lbl], k) => {
+      const p = Engine.power(s, v, rho), x = X(v), y = Y(p);
+      ctx.fillStyle = k === 2 ? css('--accent') : css('--text'); ctx.strokeStyle = css('--panel'); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, k === 2 ? 5.5 : 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = css('--text'); ctx.font = '600 11px "IBM Plex Sans", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(lbl, Math.min(w - 26, Math.max(pad.l + 22, x)), y - 8 - (k === 1 && Math.abs(v - d.speeds.vEndurance) < 2 ? 12 : 0) - (k === 2 && Math.abs(v - d.speeds.vRange) < 2 ? 24 : 0));
+    });
+    hover(cv, pad, (mx) => {
+      const v = xr[0] + (mx - pad.l) / (w - pad.l - pad.r) * (xr[1] - xr[0]);
+      if (v < v0 || v > s.vMax) return null;
+      const p = Engine.power(s, v, rho);
+      return { x: X(v), y: Y(p), tip: [h('b', { text: `${fmt(v, 1)} m/s` }), h('br'), `Güç ${fmt(p)} W`, h('br'), `Tüketim ${v > 0.3 ? fmt(p / v * 1000 / 3600, 1) : '-'} Wh/km`] };
+    }, () => drawPowerChart(d));
+  }
+  function drawTimeChart(id, d, fy, unit, refLine, yfix) {
+    const cv = $('#' + id); if (!cv || !d.timeline.length) return;
+    const { ctx, w, h: hh } = setupCanvas(cv);
+    const full = d.timeline, tl = decimate(full, 1500), tmax = full[full.length - 1].t || 1;
+    const pad = { l: 40, r: 12, t: 10, b: 24 };
+    const yr = yfix || [0, niceMax(Math.max(...tl.map(fy)) * 1.1)];
+    const X = (t) => pad.l + (w - pad.l - pad.r) * t / tmax, Y = (v) => pad.t + (hh - pad.t - pad.b) * (1 - (v - yr[0]) / (yr[1] - yr[0]));
+    axes(ctx, w, hh, pad, [0, tmax], yr, (t) => clock(t), (v) => fmt(v) + (unit === '%' ? '%' : ''));
+    if (refLine !== null && refLine !== undefined) { ctx.strokeStyle = css('--crit'); ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(pad.l, Y(refLine)); ctx.lineTo(w - pad.r, Y(refLine)); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.strokeStyle = css('--d' + (d.idx % 6)); ctx.lineWidth = tl.length > 600 ? 1.2 : 2; ctx.beginPath();
+    tl.forEach((s, k) => (k ? ctx.lineTo(X(s.t), Y(fy(s))) : ctx.moveTo(X(s.t), Y(fy(s))))); ctx.stroke();
+    if (sim.t > 0) { ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X(Math.min(sim.t, tmax)), pad.t); ctx.lineTo(X(Math.min(sim.t, tmax)), hh - pad.b); ctx.stroke(); }
+    hover(cv, pad, (mx) => {
+      const t = (mx - pad.l) / (w - pad.l - pad.r) * tmax; if (t < 0 || t > tmax) return null;
+      const s = sampleAt(full, t);
+      return { x: X(t), y: Y(fy(s)), tip: [h('b', { text: 'T+' + clock(t) }), h('br'), `${unit === '%' ? 'Batarya' : 'İrtifa'} ${fmt(fy(s))} ${unit}`, h('br'), `Sorti ${s.sortie}`] };
+    }, () => drawTimeChart(id, d, fy, unit, refLine, yfix));
+  }
+  function drawSeriesChart(id, p) {
+    const cv = $('#' + id); if (!cv) return;
+    const { ctx, w, h: hh } = setupCanvas(cv);
+    const n = Math.min(p.series.length, Math.ceil(R.windowSec / p.seriesStep) + 1), ser = p.series.slice(0, n), tmax = (n - 1) * p.seriesStep || 1;
+    const pad = { l: 40, r: 12, t: 10, b: 24 };
+    const ymax = Math.max(1, ...ser);
+    const X = (t) => pad.l + (w - pad.l - pad.r) * t / tmax, Y = (v) => pad.t + (hh - pad.t - pad.b) * (1 - v / ymax);
+    axes(ctx, w, hh, pad, [0, tmax], [0, ymax], (t) => clock(t), (v) => fmt(v, Number.isInteger(v) ? 0 : 1));
+    ctx.fillStyle = css('--accent-soft'); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+    ser.forEach((v, k) => { ctx.lineTo(X(k * p.seriesStep), Y(v)); ctx.lineTo(X((k + 1) * p.seriesStep > tmax ? tmax : (k + 1) * p.seriesStep), Y(v)); });
+    ctx.lineTo(X(tmax), Y(0)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    hover(cv, pad, (mx) => {
+      const t = (mx - pad.l) / (w - pad.l - pad.r) * tmax; if (t < 0 || t > tmax) return null;
+      const v = ser[Math.min(ser.length - 1, Math.floor(t / p.seriesStep))];
+      return { x: X(t), y: Y(v), tip: [h('b', { text: 'T+' + clock(t) }), h('br'), `Görevde ${v} drone`] };
+    }, () => drawSeriesChart(id, p));
+  }
+  function hover(cv, pad, pick, redraw) {
+    cv.onmousemove = (e) => {
+      const r = cv.getBoundingClientRect(), mx = e.clientX - r.left;
+      redraw();
+      const p = pick(mx); if (!p) { hideTip(); return; }
+      const ctx = cv.getContext('2d');
+      ctx.strokeStyle = css('--faint'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x, pad.t); ctx.lineTo(p.x, cv.clientHeight - pad.b); ctx.stroke();
+      ctx.fillStyle = css('--text'); ctx.strokeStyle = css('--panel'); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      showTip(e.clientX, e.clientY, p.tip);
+    };
+    cv.onmouseleave = () => { hideTip(); redraw(); };
+  }
+
+  /* ---------- Göstergeler (Quadruplet GCS düzeninden) ---------- */
+  const NS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  function dial({ min, max, majors, minors, fmtTick, bands }) {
+    const svg = sv('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true' });
+    svg.append(sv('circle', { cx: 50, cy: 50, r: 46, class: 'dial-face' }));
+    const A = (v) => -135 + 270 * (v - min) / (max - min);
+    const pt = (ang, r) => [50 + r * Math.sin(ang * Math.PI / 180), 50 - r * Math.cos(ang * Math.PI / 180)];
+    (bands || []).forEach((b) => {
+      const a0 = A(b.from), a1 = A(b.to), p0 = pt(a0, 40), p1 = pt(a1, 40);
+      svg.append(sv('path', { d: `M${p0[0]},${p0[1]} A40,40 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${p1[0]},${p1[1]}`, fill: 'none', 'stroke-width': 4, class: b.cls }));
+    });
+    for (let k = 0; k <= majors * minors; k++) {
+      const v = min + (max - min) * k / (majors * minors), a = A(v), major = k % minors === 0;
+      const p0 = pt(a, major ? 34 : 37), p1 = pt(a, 42);
+      svg.append(sv('line', { x1: p0[0], y1: p0[1], x2: p1[0], y2: p1[1], class: 'dial-tick' + (major ? ' major' : '') }));
+      if (major) { const pn = pt(a, 26); const tx = sv('text', { x: pn[0], y: pn[1], class: 'dial-num' }); tx.textContent = fmtTick(v); svg.append(tx); }
+    }
+    const needle = sv('line', { x1: 50, y1: 56, x2: 50, y2: 13, class: 'dial-needle' });
+    needle.style.transformOrigin = '50px 50px';
+    svg.append(needle, sv('circle', { cx: 50, cy: 50, r: 4, class: 'dial-hub' }));
+    return { svg, set: (v) => { needle.style.transform = `rotate(${A(Math.min(max, Math.max(min, v)))}deg)`; } };
+  }
+  function attitude() {
+    const svg = sv('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true' });
+    const clip = sv('clipPath', { id: 'attClip' }); clip.append(sv('circle', { cx: 50, cy: 50, r: 45 }));
+    const defs = sv('defs', {}); defs.append(clip); svg.append(defs);
+    const g = sv('g', { 'clip-path': 'url(#attClip)' }), horizon = sv('g', {});
+    horizon.append(sv('rect', { x: -50, y: -100, width: 200, height: 150, class: 'att-sky' }), sv('rect', { x: -50, y: 50, width: 200, height: 150, class: 'att-ground' }), sv('line', { x1: -50, y1: 50, x2: 150, y2: 50, class: 'att-line' }));
+    [-20, -10, 10, 20].forEach((p) => horizon.append(sv('line', { x1: 40, y1: 50 - p * 1.4, x2: 60, y2: 50 - p * 1.4, class: 'att-line' })));
+    horizon.style.transformOrigin = '50px 50px';
+    g.append(horizon); svg.append(g, sv('circle', { cx: 50, cy: 50, r: 45, class: 'dial-face', style: 'fill:none' }), sv('path', { d: 'M24,52 L42,52 L50,58 L58,52 L76,52', class: 'att-wing' }));
+    return { svg, set: (pitch, roll) => { horizon.style.transform = `rotate(${-roll}deg) translateY(${pitch * 1.4}px)`; } };
+  }
+  function compass() {
+    const svg = sv('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true' });
+    svg.append(sv('circle', { cx: 50, cy: 50, r: 46, class: 'dial-face' }));
+    const card = sv('g', {}); card.style.transformOrigin = '50px 50px';
+    for (let k = 0; k < 36; k++) {
+      const a = k * 10, major = k % 3 === 0, r0 = major ? 35 : 38;
+      const p0 = [50 + r0 * Math.sin(a * Math.PI / 180), 50 - r0 * Math.cos(a * Math.PI / 180)], p1 = [50 + 42 * Math.sin(a * Math.PI / 180), 50 - 42 * Math.cos(a * Math.PI / 180)];
+      card.append(sv('line', { x1: p0[0], y1: p0[1], x2: p1[0], y2: p1[1], class: 'dial-tick' + (major ? ' major' : '') }));
+    }
+    [['K', 0], ['D', 90], ['G', 180], ['B', 270]].forEach(([t, a]) => { const tx = sv('text', { x: 50 + 27 * Math.sin(a * Math.PI / 180), y: 50 - 27 * Math.cos(a * Math.PI / 180), class: 'dial-num', style: 'font-size:9px' }); tx.textContent = t; card.append(tx); });
+    svg.append(card, sv('path', { d: 'M50,22 L56,58 L50,52 L44,58 Z', fill: 'var(--accent)' }));
+    return { svg, set: (hdg) => { card.style.transform = `rotate(${-hdg}deg)`; } };
+  }
+  const G = {};
+  function buildGauges() {
+    const mk = (key, inst) => { const v = h('div', { class: 'gv' }); G[key] = { inst, v }; return h('div', { class: 'gauge' }, inst.svg, v); };
+    $('#gauges').replaceChildren(
+      mk('speed', dial({ min: 0, max: 30, majors: 6, minors: 2, fmtTick: (v) => v })),
+      mk('att', attitude()),
+      mk('alt', dial({ min: 0, max: 150, majors: 5, minors: 3, fmtTick: (v) => v, bands: [{ from: 120, to: 150, cls: 'dial-band-crit' }] })),
+      mk('bat', dial({ min: 0, max: 100, majors: 4, minors: 5, fmtTick: (v) => v, bands: [{ from: 0, to: 25, cls: 'dial-band-crit' }, { from: 25, to: 40, cls: 'dial-band-warn' }] })),
+      mk('hdg', compass()),
+      mk('vs', dial({ min: -6, max: 6, majors: 4, minors: 3, fmtTick: (v) => v })));
+  }
+  const setG = (key, valueText, label) => G[key].v.replaceChildren(h('small', { text: label }), valueText);
+  function updateGauges() {
+    const d = R && !R.error ? R.drones[selected] : null;
+    if (!d || d.empty || !d.timeline.length) {
+      ['speed', 'alt', 'bat', 'vs'].forEach((k) => G[k].inst.set(0)); G.att.inst.set(0, 0); G.hdg.inst.set(0);
+      setG('speed', '-', 'Yer hızı'); setG('att', '-', 'Yunuslama / yatış'); setG('alt', '-', 'İrtifa'); setG('bat', '-', 'Batarya'); setG('hdg', '-', 'Baş açısı'); setG('vs', '-', 'Dikey hız');
+      return;
+    }
+    const s = sampleAt(d.timeline, sim.t);
+    const moving = s.vg > 0.6;
+    const pitch = d.type === 'fixed' ? (s.vs > 0 ? 8 : s.vs < 0 ? -4 : 2) : (moving ? -Math.min(25, 3 + 20 * s.va / d.spec.vMax) : 0);
+    const roll = s.k === 'turn' ? (d.type === 'fixed' ? 30 : 18) : 0;
+    G.speed.inst.set(s.vg); setG('speed', `${fmt(s.vg, 1)} m/s`, 'Yer hızı');
+    G.att.inst.set(pitch, roll); setG('att', `P ${fmt(pitch)}° R ${fmt(roll)}°`, 'Yunuslama / yatış');
+    G.alt.inst.set(s.z); setG('alt', `${fmt(s.z)} m`, 'İrtifa');
+    G.bat.inst.set(s.bat); setG('bat', `%${fmt(s.bat)}`, `Batarya, sorti ${s.sortie}`);
+    G.hdg.inst.set(s.hdg); setG('hdg', `${fmt(s.hdg)}°`, 'Baş açısı');
+    G.vs.inst.set(s.vs); setG('vs', `${fmt(s.vs, 1)} m/s`, 'Dikey hız');
+  }
+
+  /* ---------- Simülasyon: işaretçi tabanlı, kare başına sabit maliyet ---------- */
+  const TRAIL = 300;
+  const sim = { t: 0, running: false, last: 0, raf: 0, marks: [], trails: [], idx: [], fired: [] };
+  function findIdx(tl, t) { // t'den küçük ya da eşit son örnek
+    let lo = 0, hi = tl.length - 1;
+    if (t >= tl[hi].t) return hi;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tl[mid].t <= t) lo = mid; else hi = mid; }
+    return lo;
+  }
+  function sampleAt(tl, t) {
+    if (t <= tl[0].t) return Object.assign({}, tl[0], { vg: 0, vs: 0 });
+    const last = tl[tl.length - 1];
+    if (t >= last.t) return Object.assign({}, last, { vg: 0, vs: 0, k: 'done' });
+    const lo = findIdx(tl, t), a = tl[lo], b = tl[lo + 1], f = (t - a.t) / ((b.t - a.t) || 1);
+    return { t, x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, bat: a.bat + (b.bat - a.bat) * f, vg: b.vg, va: b.va, vs: b.vs, hdg: b.hdg, k: b.k, sortie: b.sortie, idx: lo + 1 };
+  }
+  const simMax = () => (R && !R.error ? Math.max(0, ...R.drones.map((d) => (d.timeline.length ? d.timeline[d.timeline.length - 1].t : 0))) : 0);
+  function renderSimDrones() {
+    const s = $('#simDrone');
+    const list = R && !R.error ? R.drones.filter((d) => d.used) : [];
+    s.replaceChildren(...(list.length ? list.map((d) => h('option', { value: d.idx, text: `Gösterge: ${d.name}` })) : [h('option', { value: -1, text: 'Drone seçilmedi' })]));
+    s.value = selected;
+    gSim.clearLayers(); sim.marks = []; sim.trails = []; sim.idx = []; sim.fired = [];
+    if (!R || R.error) { updateGauges(); return; }
+    R.drones.forEach((d, i) => {
+      sim.idx.push(-1); sim.fired.push(0);
+      if (d.empty || !d.timeline.length) { sim.marks.push(null); sim.trails.push(null); return; }
+      const ic = d.type === 'fixed' ? 'airplane-tilt' : 'drone';
+      sim.marks.push(L.marker(d.timeline[0].ll, { icon: divIcon(`<div class="uav"><div class="body" style="background:${MAP_COLORS[i % 6]}"><i class="ph-fill ph-${ic}"></i></div><span class="tag">${esc(d.name)}</span></div>`, [30, 30]), interactive: false, keyboard: false, zIndexOffset: 1000 }));
+      sim.trails.push(L.polyline([], { color: '#ffffff', weight: 2, opacity: 0.85, interactive: false }).addTo(gSim));
+    });
+    updateSim(false);
+  }
+  $('#simDrone').addEventListener('change', (e) => { const v = Number(e.target.value); if (v >= 0) { selected = v; renderResults(); drawRoutes(); updateGauges(); } });
+  function updateSim(withEvents) {
+    if (!R || R.error) return;
+    const tmax = simMax(), show = sim.running || sim.t > 0;
+    R.drones.forEach((d, i) => {
+      const mk = sim.marks[i]; if (!mk) return;
+      const tl = d.timeline, s = sampleAt(tl, sim.t), ix = findIdx(tl, sim.t);
+      if (show && !gSim.hasLayer(mk)) mk.addTo(gSim);
+      if (!show && gSim.hasLayer(mk)) gSim.removeLayer(mk);
+      const ll = toLL([s.x, s.y]);
+      mk.setLatLng(ll);
+      const bodyEl = mk.getElement()?.querySelector('.body i');
+      if (bodyEl) bodyEl.style.transform = `rotate(${s.hdg}deg)`;
+      if (ix !== sim.idx[i] || sim.running) {
+        const from = Math.max(0, ix - TRAIL), pts = [];
+        for (let k = from; k <= ix; k++) pts.push(tl[k].ll);
+        pts.push(ll);
+        sim.trails[i].setLatLngs(show ? pts : []);
+      }
+      if (withEvents) fireEvents(d, i, ix); else sim.fired[i] = ix + 1;
+      sim.idx[i] = ix;
+    });
+    $('#simClock').textContent = 'T+' + clock(sim.t);
+    $('#scrub').value = tmax ? Math.round(sim.t / tmax * 1000) : 0;
+    updateGauges();
+  }
+  function fireEvents(d, i, ix) {
+    const tl = d.timeline;
+    let n = 0;
+    for (let k = sim.fired[i]; k <= ix && k < tl.length; k++) {
+      const s = tl[k], at = { simTime: s.t };
+      if (n > 6) break; // tek karede kayıt taşmasın
+      if (k === 1 && s.k === 'climb') { log(i, `Kalkış yapıldı, ${d.alt} m görev irtifasına tırmanıyor.`, null, at); n++; }
+      else if (s.k === 'rth') { log(i, `Batarya %${fmt(s.bat)}: rezervi korumak için kalkış noktasına dönüyor.`, 'warn', at); n++; }
+      else if (s.k === 'swap') { log(i, `Batarya değiştirildi, sorti ${s.sortie} başlıyor.`, 'ok', at); n++; }
+      else if (s.k === 'wait') { log(i, 'Sonraki döngü için yerde bekliyor.', null, at); n++; }
+      else if (s.k === 'hover' && s.poi) { log(i, `İlgi noktası ${s.poi} incelendi.`, null, at); n++; }
+      else if (k === tl.length - 1) { log(i, `Görev tamamlandı. Kalan batarya %${fmt(s.bat)}.`, 'ok', at); n++; }
+    }
+    sim.fired[i] = ix + 1;
+  }
+  function tick(now) {
+    if (!sim.running) return;
+    const dt = Math.min(0.1, (now - sim.last) / 1000); sim.last = now;
+    sim.t += dt * Number($('#simSpeed').value);
+    const tmax = simMax();
+    if (sim.t >= tmax) { sim.t = tmax; updateSim(true); stopSim(); log('Simülasyon', `Tüm filo görevini bitirdi. Süre ${fmtDur(tmax)}.`, 'ok', { simTime: tmax }); return; }
+    updateSim(true);
+    sim.raf = requestAnimationFrame(tick);
+  }
+  function toggleSim() {
+    if (sim.running) { stopSim(); return; }
+    if (!R || R.error || !R.drones.some((d) => d.used)) return;
+    if (sim.t >= simMax()) { sim.t = 0; sim.fired = sim.fired.map(() => 0); }
+    sim.running = true; sim.last = performance.now();
+    $('#btnSim').replaceChildren(icon('pause', true), h('span', { text: 'Duraklat' }));
+    if (sim.t === 0) log('Simülasyon', `Simülasyon başladı (${$('#simSpeed').value}× hız).`, null);
+    sim.raf = requestAnimationFrame(tick);
+  }
+  function stopSim(reset) {
+    sim.running = false; cancelAnimationFrame(sim.raf);
+    $('#btnSim').replaceChildren(icon('play', true), h('span', { text: 'Simüle et' }));
+    if (reset) sim.t = 0;
+    if (R && !R.error && !reset && R.drones[selected] && R.drones[selected].used) drawTimeChart('cAlt', R.drones[selected], (s) => s.z, 'm', null);
+  }
+  $('#btnSim').addEventListener('click', toggleSim);
+  $('#btnReset').addEventListener('click', () => { stopSim(true); sim.fired = sim.fired.map(() => 0); updateSim(false); });
+  $('#scrub').addEventListener('input', (e) => { sim.t = simMax() * Number(e.target.value) / 1000; updateSim(false); });
+
+  /* ---------- Dışa / içe aktarma ---------- */
+  function download(name, text, type) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const safeName = (s) => String(s).normalize('NFKD').replace(/[^\w-]+/g, '_').slice(0, 40) || 'drone';
+  /* QGroundControl / Mission Planner uyumlu .plan dosyası (MAVLink görev öğeleri), tek döngü */
+  function exportPlan(d) {
+    let id = 1;
+    const item = (command, alt, params) => ({ AMSLAltAboveTerrain: null, Altitude: alt, AltitudeMode: 1, autoContinue: true, command, doJumpId: id++, frame: 3, params, type: 'SimpleItem' });
+    const items = [], hm = d.wps[0].ll;
+    items.push(item(d.type === 'fixed' ? 84 : 22, d.alt, [0, 0, 0, null, hm[0], hm[1], d.alt])); // (VTOL_)TAKEOFF
+    items.push(item(178, 0, [1, Math.round(Math.min(d.va, d.vgCap) * 10) / 10, -1, 0, 0, 0, 0])); // DO_CHANGE_SPEED
+    for (let k = 2; k < d.wps.length - 2; k++) {
+      const w = d.wps[k], next = d.wps[k + 1];
+      items.push(item(16, d.alt, [w.hover || 0, 0, 0, null, w.ll[0], w.ll[1], d.alt]));
+      if (R.mode === 'coverage' && w.laneStart) items.push(item(206, 0, [Math.round(d.photoDist * 10) / 10, 0, 1, 0, 0, 0, 0])); // DO_SET_CAM_TRIGG_DIST
+      else if (R.mode === 'coverage' && w.cap && next && !next.cap) items.push(item(206, 0, [0, 0, 1, 0, 0, 0, 0]));
+    }
+    items.push(item(20, 0, [0, 0, 0, 0, 0, 0, 0])); // RETURN_TO_LAUNCH
+    const fence = d.parcelIdx.map((pi) => ({ inclusion: true, polygon: S.parcels[pi] ? S.parcels[pi].pts.map((p) => [p[0], p[1]]) : [], version: 1 }));
+    const plan = {
+      fileType: 'Plan', version: 1, groundStation: 'QGroundControl',
+      mission: { version: 2, firmwareType: 3, vehicleType: d.type === 'fixed' ? 20 : 2, cruiseSpeed: Math.round(d.va * 10) / 10, hoverSpeed: Math.round(Math.min(d.va, d.vgCap) * 10) / 10, plannedHomePosition: [hm[0], hm[1], 0], items },
+      geoFence: { circles: [], polygons: fence, version: 2 },
+      rallyPoints: { points: S.homes.map((x) => [x.ll[0], x.ll[1], 0]), version: 2 },
+    };
+    download(`${safeName(d.name)}_${R.mode}.plan`, JSON.stringify(plan, null, 2), 'application/json');
+    log(d.idx, `Görev dosyası indirildi (${items.length} öğe, ${d.alt} m). Uçuştan önce yer istasyonunda kontrol edin.`, 'ok');
+  }
+  $('#btnExport').addEventListener('click', () => { download('nobetci_ayarlar.json', JSON.stringify(S, null, 2), 'application/json'); log('Plan', 'Ayarlar JSON olarak indirildi.', 'ok'); });
+  $('#btnImport').addEventListener('click', () => $('#fileImport').click());
+  $('#fileImport').addEventListener('change', (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    if (f.size > 512 * 1024) { toast('Dosya çok büyük. En fazla 512 KB.'); return; }
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        S = sanitize(JSON.parse(String(rd.result)));
+        selected = 0; expanded = -1; save(); fullRender(); fit();
+        log('Plan', `Ayarlar yüklendi: ${f.name.slice(0, 40)}.`, 'ok');
+      } catch (err) { toast('Dosya okunamadı. Nöbetçi ayar dosyası (JSON) seçin.'); log('Plan', 'Ayar dosyası okunamadı: geçerli JSON değil.', 'crit'); }
+    };
+    rd.readAsText(f);
+  });
+
+  /* ---------- Tema ---------- */
+  const themeIsDark = () => { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : !window.matchMedia('(prefers-color-scheme: light)').matches; };
+  function syncThemeBtn() { const b = $('#btnTheme'); b.replaceChildren(icon(themeIsDark() ? 'sun' : 'moon')); b.setAttribute('aria-label', themeIsDark() ? 'Açık temaya geç' : 'Koyu temaya geç'); }
+  try { const t = localStorage.getItem('nobetci.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) { /* yok */ }
+  $('#btnTheme').addEventListener('click', () => {
+    const next = themeIsDark() ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('nobetci.theme', next); } catch (e) { /* yok */ }
+    syncThemeBtn(); renderResults();
+  });
+  syncThemeBtn();
+
+  /* ---------- Başlat ---------- */
+  function fullRender() {
+    renderFields($('#missionFields'), S.mission, MISSION_FIELDS, () => changed('mission'));
+    renderFields($('#opsFields'), S.mission, OPS_FIELDS, () => changed('mission'));
+    renderFields($('#envFields'), S.env, ENV_FIELDS, () => changed('env'));
+    renderFields($('#costFields'), S.costs, COST_FIELDS, () => changed('cost'));
+    setBase(S.baseLayer);
+    drawParcels(); drawMarks(); renderArazi(); renderFleet(); renderMission();
+    recompute();
+  }
+  let rsz = null;
+  window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { map.invalidateSize(); if (R && !R.error) renderResults(); }, 150); });
+  buildGauges();
+  fullRender();
+  fit();
+  log('Sistem', 'Nöbetçi hazır. Arsaları, kalkış noktalarını ve filoyu düzenleyin; plan arka planda yeniden hesaplanır.', 'ok');
+})();
+</script>
+</body>
+</html>

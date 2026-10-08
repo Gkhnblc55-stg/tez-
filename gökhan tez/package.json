@@ -1,0 +1,15 @@
+{
+  "name": "nobetci-drone-planlayici",
+  "version": "1.0.0",
+  "description": "Arsa izleme için çoklu drone rota, irtifa ve sürekli gözlem planlayıcı",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node sunucu.js --ac",
+    "test": "node testler/motor.test.js",
+    "csp": "node araclar/csp-guncelle.js"
+  }
+}
