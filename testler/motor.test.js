@@ -227,4 +227,69 @@ test('Sürekli çevre devriyesinde görevdeki drone ortalaması ve ziyaret aral�
   r.parcels.forEach(p => { assert.ok(p.onStationMean > 0, p.name); assert.ok(p.revisitAvgSec > 0, p.name); assert.ok(p.series.length > 10); });
 });
 
+/* ---------- 7/24 güvenlik devriyesi ---------- */
+const ATAKOY = [[40.97689, 28.84113], [40.9774, 28.84799], [40.97575, 28.85184], [40.97367, 28.85074], [40.97201, 28.84909],
+  [40.96911, 28.84689], [40.96673, 28.8458], [40.96673, 28.83975], [40.97098, 28.84058]];
+const devriye = Engine.PRESETS.find(p => p.id === 'devriye').spec;
+const secIn = (sec = {}, over = {}) => Object.assign({
+  parcels: [{ name: 'Ataköy', pts: ATAKOY }], homes: [{ name: 'K1', ll: [40.9700, 28.8420] }], pois: [], obstacles: [{ lat: 40.9700, lon: 28.8430, h: 30 }],
+  drones: [0, 1, 2, 3].map(i => Object.assign({ name: 'K' + i }, quad)).concat([0, 1].map(i => Object.assign({ name: 'D' + i }, devriye))),
+  env: { windSpeed: 5, windFrom: 30, tempC: 18, elevMSL: 10, alpha: 0.14, terrainVar: 3 },
+  mission: Object.assign(baseInput().mission, { mode: 'security', weight: 30 }),
+  costs: baseInput().costs,
+  security: Object.assign({ onStation: 2, reserve: 1, mtbfH: 150, mttrH: 2, chargers: 3, maxStations: 4, hours: 24, runs: 8, seed: 7, groundKmh: 25, marginMin: 3, critPct: 40 }, sec),
+}, over);
+const insideLL = (ll, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[0] > ll[0]) !== (b[0] > ll[0]) && ll[1] < (b[1] - a[1]) * (ll[0] - a[0]) / (b[0] - a[0]) + a[1]) c = !c; } return c; };
+
+test('Güvenlik: istasyon sayısı drone ve şarj yuvasına göre, en az iki (yedeklilik), hepsi alan içinde', () => {
+  const r = Engine.planMission(secIn());
+  assert.strictEqual(r.mode, 'security');
+  assert.ok(r.stations.length >= Math.max(2, Math.ceil(6 / 3)), 'istasyon ' + r.stations.length);
+  r.stations.forEach(s => assert.ok(insideLL(s.ll, ATAKOY), 'istasyon dışarıda'));
+  assert.ok(insideLL(r.repair.ll, ATAKOY), 'tamir dışarıda');
+  assert.strictEqual(r.stations.reduce((a, s) => a + s.drones.length, 0), 6);
+});
+
+test('Güvenlik: aynı tohumla simülasyon aynı sonucu verir', () => {
+  const a = Engine.planMission(secIn()), b = Engine.planMission(secIn());
+  assert.strictEqual(a.rep.coverage, b.rep.coverage);
+  assert.strictEqual(a.rep.failures, b.rep.failures);
+});
+
+test('Güvenlik: arıza yokken ve filo yeterliyken kapsama %99 üstü, boşluk yok denecek kadar az', () => {
+  const r = Engine.planMission(secIn({ mtbfH: 1e9 }));
+  assert.ok(r.rep.coverage >= 0.99 && r.rep.coverage <= 1, 'kapsama ' + r.rep.coverage);
+  r.configs.forEach(c => assert.ok(c.covMean <= 1 && c.covP10 <= 1, 'yapılandırma kapsaması %100 üstü'));
+  assert.ok(r.rep.maxGapSec <= 120, 'boşluk ' + r.rep.maxGapSec);
+  assert.strictEqual(r.rep.failures, 0);
+});
+
+test('Güvenlik: arızalar rastgele oluşur, tamir edilip göreve döner, güvenlik yedeklerle korunur', () => {
+  const r = Engine.planMission(secIn({ mtbfH: 6 }));
+  assert.ok(r.rep.failures > 0, 'arıza yok');
+  const kinds = new Set(r.drones.flatMap(d => d.timeline.map(s => s.k)));
+  ['fail', 'repair'].forEach(k => assert.ok(kinds.has(k), k + ' olayı yok'));
+  assert.ok(r.rep.coverage > 0.85, 'kapsama ' + r.rep.coverage);
+  assert.ok(r.rep.reserveAvail >= 0 && r.rep.reserveAvail <= 1);
+});
+
+test('Güvenlik: seçilen yapılandırma en kötü senaryo kapsamasında en iyisidir', () => {
+  const r = Engine.planMission(secIn());
+  const best = Math.max(...r.configs.map(c => c.covP10));
+  const chosen = r.configs.find(c => c.chosen);
+  assert.ok(chosen, 'seçim yok');
+  assert.ok(chosen.covP10 >= best - 0.0025, `seçilen ${chosen.covP10} en iyi ${best}`);
+});
+
+test('Güvenlik: drone yetersizse gereken sayı önerilir ve kritik uyarı verilir', () => {
+  const r = Engine.planMission(secIn({ onStation: 3, reserve: 1 }, { drones: [Object.assign({ name: 'Tek' }, quad)] }));
+  assert.ok(r.fleet.needed > r.fleet.owned, JSON.stringify(r.fleet));
+  assert.ok(r.warnings.some(w => w.level === 'crit'));
+});
+
+test('Güvenlik: varsayılan plan (6 drone, 24 saat, 8 deneme, tüm yapılandırmalar) 3 saniyenin altında', () => {
+  const t = Date.now(); Engine.planMission(secIn()); const ms = Date.now() - t;
+  assert.ok(ms < 3000, ms + ' ms');
+});
+
 console.log(`\n${passed} test geçti`);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-iFCqNSkIYvoMWblFGTMCP8DYnEHE8ZSPJ1uI6HmlS8Q=' 'sha256-8gMuylQ+U5Q2p1VTLkhkxuoWpfOepoVNUf+RsWp8RfA='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-Vs+uKbar3hcvj5NexQJu+4hh7FdeEgRTvDBquMJLnMw=' 'sha256-TkYmPhd+w0Gl8550REHXu/XT1H1D2HadDwWibigb9Gg='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Nöbetçi Rota Planlayıcı</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -344,6 +344,14 @@ details.method li { margin: 5px 0; }
 .parcel-label { background: rgba(10, 14, 12, .8); color: #fff; border: 1px solid #f2c14e; border-radius: 4px; font: 700 12px/1 var(--font-num); padding: 3px 6px; box-shadow: none; }
 .parcel-label::before { display: none; }
 .pin-home span { font: 700 11px/1 var(--font-num); }
+.pin-st { display: inline-flex; align-items: center; gap: 3px; height: 30px; padding: 0 7px 0 5px; border-radius: 8px; background: #1d1604; color: #f2c14e; border: 2px solid #f2c14e; font: 700 12px/1 var(--font-num); box-shadow: 0 2px 6px rgba(0,0,0,.45); white-space: nowrap; }
+.pin-st i { font-size: 17px; }
+.pin-rep { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #f4f6f4; color: #1b1b1b; border: 2px solid #1b1b1b; font-size: 17px; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+.cfgwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-panel); }
+.cfgt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cfgt th { text-align: left; color: var(--muted); font-weight: 600; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.cfgt td { padding: 6px 8px; font-family: var(--font-num); white-space: nowrap; }
+.cfgt tr.on td { background: var(--accent-soft); }
 .busy { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -455,12 +463,23 @@ details.method li { margin: 5px 0; }
 
       <div class="pane" id="pane-gorev" role="tabpanel" aria-labelledby="tab-gorev" hidden>
         <h2>Görev türü</h2>
-        <div class="seg" id="modeSeg" role="group" aria-label="Görev türü">
+        <div class="seg" id="modeSeg" role="group" aria-label="Görev türü" style="grid-auto-flow:row;grid-template-columns:1fr 1fr">
+          <button type="button" data-mode="security" aria-pressed="false"><i class="ph ph-shield-check" aria-hidden="true"></i>7/24 güvenlik</button>
           <button type="button" data-mode="coverage" aria-pressed="true"><i class="ph ph-grid-four" aria-hidden="true"></i>Alan tarama</button>
           <button type="button" data-mode="perimeter" aria-pressed="false"><i class="ph ph-polygon" aria-hidden="true"></i>Çevre devriyesi</button>
           <button type="button" data-mode="poi" aria-pressed="false"><i class="ph ph-map-pin-line" aria-hidden="true"></i>Noktasal kontrol</button>
         </div>
         <p class="lead" id="modeHelp" style="margin-top:8px"></p>
+        <div id="secBox">
+          <h2>Güvenlik hedefi</h2>
+          <p class="lead">Güvenlik her zaman önce gelir: önce kesintisiz devriye, sonra hazır yedek, en son enerji ve süre tasarrufu karşılaştırılır. Şarj ve kalkış istasyonları ile tamir istasyonunun yeri ve sayısı otomatik hesaplanır.</p>
+          <div class="fields" id="secFields"></div>
+          <h2>Arıza ve tamir</h2>
+          <div class="fields" id="secFailFields"></div>
+          <h2>Benzetim</h2>
+          <div class="fields" id="secSimFields"></div>
+        </div>
+        <div id="flowBox">
         <h2>Sürekli gözlem</h2>
         <label class="check"><input type="checkbox" id="continuous"> <span>Gözlem süresi boyunca döngüleri tekrarla; batarya değişimini ve şarj sırasını planla</span></label>
         <h2>Drone seçimi</h2>
@@ -469,6 +488,7 @@ details.method li { margin: 5px 0; }
           <button type="button" data-sel="manual" aria-pressed="false"><i class="ph ph-hand-pointing" aria-hidden="true"></i>Elle</button>
         </div>
         <p class="lead" id="selHelp" style="margin-top:8px"></p>
+        </div>
         <h2>Öncelik</h2>
         <div class="field wide">
           <label for="weight">Enerji tasarrufu ile zaman tasarrufu arasındaki denge</label>
@@ -478,12 +498,14 @@ details.method li { margin: 5px 0; }
         </div>
         <h2>Görüntü ve irtifa</h2>
         <div class="fields" id="missionFields"></div>
+        <div id="angleBox">
         <h2>Şerit yönü</h2>
         <label class="check"><input type="checkbox" id="angleAuto"> <span>Yönü otomatik bul (rüzgâr, dönüş sayısı ve şerit boyuna göre)</span></label>
         <div class="field wide" style="margin-top:10px">
           <label for="angle">Elle şerit yönü</label>
           <input type="range" id="angle" min="0" max="175" step="5">
           <span class="help" id="angleVal"></span>
+        </div>
         </div>
         <h2>Filo düzeni</h2>
         <label class="check"><input type="checkbox" id="layering"> <span>Her drone'a ayrı irtifa katmanı ver (çarpışma riskine karşı dikey ayrım)</span></label>
@@ -1165,6 +1187,7 @@ const Engine = (() => {
 
   /* ---------- Ana planlayıcı: çoklu arsa, çoklu kalkış, seçim, sürekli gözlem ---------- */
   function planMission(input) {
+    if (input.mission && input.mission.mode === 'security') return planSecurity(input);
     const warnings = [];
     const warn = (level, msg) => warnings.push({ level, msg });
     const m = Object.assign({ selection: 'auto', continuous: false }, input.mission), env = input.env, costs = input.costs;
@@ -1417,6 +1440,429 @@ const Engine = (() => {
     };
   }
 
+  /* ---------- 7/24 güvenlik devriyesi ----------
+     Devriye yuvaları kapalı rotada eşit aralıkla döner; her yuvada her an bir drone bulunması hedeflenir (güvenlik önce).
+     Şarj/kalkış istasyonları ve tamir istasyonu p-medyan ile yerleştirilir; istasyon sayısı, rastgele arızalı
+     Monte Carlo benzetimlerinde en kötü senaryo kapsamasına göre seçilir; eşitlikte yedek bulunurluğu ve enerji belirler. */
+  const SEC_DEFAULTS = { onStation: 2, reserve: 1, mtbfH: 150, mttrH: 2, chargers: 3, maxStations: 4, hours: 24, runs: 12, seed: 7, groundKmh: 25, marginMin: 3, critPct: 40 };
+  function mulberry32(a) {
+    return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function edgeDist(p, poly) {
+    let best = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length], ab = [b[0] - a[0], b[1] - a[1]];
+      const L2 = ab[0] * ab[0] + ab[1] * ab[1] || 1;
+      const t = clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / L2, 0, 1);
+      best = Math.min(best, dist(p, [a[0] + ab[0] * t, a[1] + ab[1] * t]));
+    }
+    return best;
+  }
+  /* Alanı kamera izi genişliğinde iç içe halkalarla kaplayan tek kapalı devriye rotası */
+  function patrolRoute(poly, fpW) {
+    const area0 = Math.abs(signedArea(poly)), rings = [];
+    let d = Math.min(fpW / 2, 0.15 * Math.sqrt(area0)), prevA = area0;
+    for (let r = 0; r < 6; r++) {
+      const ring = offsetInward(poly, d), a = signedArea(ring);
+      if (!(a > fpW * fpW) || a >= prevA || !ring.every((p) => pointInPoly(p, poly))) break;
+      rings.push(ring); prevA = a; d += fpW * 0.9;
+    }
+    if (!rings.length) rings.push(offsetInward(poly, Math.min(fpW / 4, 0.1 * Math.sqrt(area0))));
+    const pts = [];
+    rings.forEach((ring) => {
+      let s = 0;
+      if (pts.length) { const last = pts[pts.length - 1]; let bd = Infinity; ring.forEach((p, k) => { const dd = dist(p, last); if (dd < bd) { bd = dd; s = k; } }); }
+      for (let k = 0; k <= ring.length; k++) pts.push(ring[(s + k) % ring.length]);
+    });
+    pts.push(pts[0]);
+    const route = pts.filter((p, i) => i === 0 || dist(p, pts[i - 1]) > 0.5);
+    const cum = [0];
+    for (let i = 1; i < route.length; i++) cum.push(cum[i - 1] + dist(route[i - 1], route[i]));
+    return { route, cum, L: cum[cum.length - 1], rings: rings.length };
+  }
+  function routeAt(R, s) {
+    s = ((s % R.L) + R.L) % R.L;
+    let lo = 0, hi = R.cum.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (R.cum[mid] <= s) lo = mid; else hi = mid; }
+    const a = R.route[lo], b = R.route[hi], f = (s - R.cum[lo]) / ((R.cum[hi] - R.cum[lo]) || 1);
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  }
+  function siteCandidates(poly, areaM2) {
+    const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+    let g = Math.max(20, Math.sqrt(areaM2) / 14), out = [];
+    for (let pass = 0; pass < 3 && out.length < 12; pass++, g /= 2) {
+      out = [];
+      for (let x = Math.min(...xs) + g / 2; x < Math.max(...xs); x += g)
+        for (let y = Math.min(...ys) + g / 2; y < Math.max(...ys); y += g)
+          if (pointInPoly([x, y], poly) && edgeDist([x, y], poly) > 8) out.push([x, y]);
+    }
+    if (!out.length) out.push(centroid(poly));
+    return out.slice(0, 400);
+  }
+  /* p-medyan: açgözlü başlangıç + Teitz-Bart takas iyileştirmesi */
+  function pMedian(cands, demand, weights, m) {
+    const nD = demand.length;
+    const Dm = cands.map((c) => demand.map((q) => dist(c, q)));
+    const cost = (sel) => { let s = 0; for (let j = 0; j < nD; j++) { let b = Infinity; for (const i of sel) if (Dm[i][j] < b) b = Dm[i][j]; s += b * weights[j]; } return s; };
+    const sel = [];
+    for (let k = 0; k < Math.min(m, cands.length); k++) {
+      let bi = -1, bc = Infinity;
+      for (let i = 0; i < cands.length; i++) { if (sel.includes(i)) continue; const c = cost([...sel, i]); if (c < bc) { bc = c; bi = i; } }
+      sel.push(bi);
+    }
+    let cur = cost(sel), improved = true, guard = 0;
+    while (improved && guard++ < 12) {
+      improved = false;
+      for (let a = 0; a < sel.length; a++) for (let i = 0; i < cands.length; i++) {
+        if (sel.includes(i)) continue;
+        const t = sel.slice(); t[a] = i; const c = cost(t);
+        if (c < cur - 1e-6) { sel.splice(0, sel.length, ...t); cur = c; improved = true; }
+      }
+    }
+    const maxD = demand.reduce((mx, q, j) => Math.max(mx, Math.min(...sel.map((i) => Dm[i][j]))), 0);
+    return { sites: sel.map((i) => cands[i]), cost: cur, avgD: cur / (weights.reduce((a, b) => a + b, 0) || 1), maxD };
+  }
+
+  /* Tek bir 7/24 benzetim koşusu (10 sn adım). record: harita oynatımı için zaman çizelgesi ve seriler üretir. */
+  function runSecurity(S, seed, record) {
+    const { dr, k, R, stations, repair, sp, horizon, vSlot } = S;
+    const rnd = mulberry32(seed);
+    const dt = 10, nSteps = Math.ceil(horizon / dt);
+    const swapSec = sp.swapMin * 60, margin = sp.marginMin * 60, vGround = sp.groundKmh / 3.6, road = 1.4;
+    const DR = dr.map((x, i) => ({ i, x, st: 'ready', pos: stations[x.station].slice(), z: 0, used: 0, slot: -1, t0: 0, t1: 0, from: null, to: null, rate: 0,
+      spare: new Array(Math.max(0, x.nb - 1)).fill(0), readyAt: 0, sorties: 0, flight: 0, energy: 0, failures: 0, tl: record ? [] : null }));
+    const chargers = stations.map(() => new Array(Math.max(1, sp.chargers)).fill(0));
+    let vehicleFree = 0, t = 0;
+    const slotPos = (j, tt) => routeAt(R, j * R.L / k + vSlot * tt);
+    const bat = (d) => Math.max(0, 100 * (1 - d.used / d.x.full));
+    const push = (d, kind, extra, at) => {
+      if (!d.tl) return;
+      const tt = at === undefined ? t : at;
+      while (d.tl.length && d.tl[d.tl.length - 1].t > tt) d.tl.pop(); // ileriye yazılmış tahmini örnekleri geri al
+      d.tl.push(Object.assign({ t: tt, x: d.pos[0], y: d.pos[1], z: d.z, bat: bat(d), sortie: d.sorties || 1, k: kind, vg: 0, va: 0, vs: 0, hdg: 0 }, extra));
+    };
+    const hdgOf = (a, b) => (Math.atan2(b[0] - a[0], b[1] - a[1]) / D + 360) % 360;
+    const eRet = (d) => dist(d.pos, stations[d.x.station]) / d.x.vgT * d.x.pT / 3600 + d.x.eDesc;
+    const moveLinear = (d) => { const f = clamp((t - d.t0) / ((d.t1 - d.t0) || 1), 0, 1); d.pos = [d.from[0] + (d.to[0] - d.from[0]) * f, d.from[1] + (d.to[1] - d.from[1]) * f]; };
+    // ölçümler
+    const gapStart = new Array(k).fill(null), failT = new Array(k).fill(null), resp = [];
+    let warm = null, covAcc = 0, fullAcc = 0, maxGap = 0, resOk = 0, failures = 0, energy = 0, handovers = 0, gapsN = 0;
+    const series = record ? { occ: [], ready: [], air: [] } : null;
+
+    const startBack = (d, kind, msg) => {
+      d.st = 'back'; d.slot = -1; d.from = d.pos.slice(); d.to = stations[d.x.station]; d.t0 = t;
+      const L = dist(d.from, d.to), th = L / d.x.vgT;
+      d.t1 = t + th + d.x.tDesc; d.rate = (L / d.x.vgT * d.x.pT / 3600 + d.x.eDesc) / ((d.t1 - t) || 1);
+      push(d, kind || 'rth', { vg: d.x.vgT, va: d.x.va, hdg: hdgOf(d.from, d.to), msg });
+      if (d.tl) { const keep = d.pos; d.pos = d.to; push(d, 'rth', { vg: d.x.vgT, va: d.x.va, hdg: hdgOf(d.from, d.to) }, t + th); d.z = 0; push(d, 'land', { vs: -d.x.descent }, d.t1); d.z = d.x.alt; d.pos = keep; }
+    };
+    const land = (d) => {
+      d.pos = stations[d.x.station].slice(); d.z = 0;
+      const usedFrac = d.used / d.x.full;
+      if (d.x.fuel) { d.readyAt = t + swapSec; }
+      else {
+        // biten batarya istasyon şarj kuyruğuna girer (FIFO, istasyondaki şarj yuvası sayısı kadar paralel)
+        const ch = chargers[d.x.station]; let ci = 0; ch.forEach((e, q) => { if (e < ch[ci]) ci = q; });
+        const end = Math.max(t, ch[ci]) + d.x.chargeSec * Math.min(1, usedFrac + 0.05);
+        ch[ci] = end;
+        if (d.spare.length) { d.spare.sort((a, b) => a - b); d.readyAt = Math.max(t + swapSec, d.spare.shift()); d.spare.push(end); }
+        else d.readyAt = Math.max(t + swapSec, end);
+      }
+      d.st = 'charge'; d.used = 0;
+      if (d.tl) { const u = d.used; push(d, 'swap', { msg: d.readyAt - t > swapSec + 30 ? `Şarjlı batarya bekleniyor (${Math.round((d.readyAt - t) / 60)} dk).` : null }, d.readyAt); d.used = u; }
+    };
+    const launch = (d, j, eta, reason) => {
+      d.st = 'out'; d.slot = j; d.sorties++;
+      d.from = stations[d.x.station].slice(); d.to = slotPos(j, t + eta); d.t0 = t; d.t1 = t + eta;
+      const L = dist(d.from, d.to);
+      d.rate = (d.x.eClimb + L / d.x.vgT * d.x.pT / 3600) / (eta || 1);
+      push(d, 'wait', { msg: reason });
+      if (d.tl) { d.z = d.x.alt; push(d, 'climb', { vs: d.x.climb }, t + d.x.tClimb); const keep = d.pos; d.pos = d.to; push(d, 'leg', { vg: d.x.vgT, va: d.x.va, hdg: hdgOf(d.from, d.to) }, d.t1); d.pos = keep; d.z = 0; }
+    };
+    const fail = (d) => {
+      failures++; d.failures++;
+      const wasSlot = d.slot;
+      if (wasSlot >= 0 && d.st === 'on') failT[wasSlot] = t;
+      d.slot = -1;
+      const crit = rnd() < sp.critPct / 100;
+      const toRep = dist(d.pos, repair) / d.x.vgT * d.x.pT / 3600 + d.x.eDesc;
+      const types = crit ? ['motor arızası', 'pervane hasarı', 'güç kesintisi'] : ['GPS sapması', 'kamera arızası', 'iletişim kesintisi'];
+      const what = types[Math.floor(rnd() * types.length)];
+      if (!crit && d.x.usable - d.used >= toRep) {
+        d.st = 'toRepair'; d.from = d.pos.slice(); d.to = repair; d.t0 = t;
+        const th = dist(d.from, d.to) / d.x.vgT; d.t1 = t + th + d.x.tDesc; d.rate = toRep / ((d.t1 - t) || 1);
+        push(d, 'fail', { msg: `ARIZA (hafif): ${what}. Uçarak tamir istasyonuna gidiyor.`, cap: false });
+        if (d.tl) { const keep = d.pos; d.pos = d.to; push(d, 'rth', {}, t + th); d.z = 0; push(d, 'land', {}, d.t1); d.pos = keep; d.z = d.x.alt; }
+      } else {
+        d.st = 'down';
+        push(d, 'fail', { msg: `ARIZA (kritik): ${what}. Acil iniş yapıldı, kurtarma aracı yola çıktı.`, cap: false });
+        d.z = 0;
+        const start = Math.max(t, vehicleFree), drive = dist(repair, d.pos) * road / vGround;
+        d.t1 = start + drive; vehicleFree = start + 2 * drive;
+        push(d, 'down', {}, Math.min(t + 20, d.t1));
+      }
+    };
+
+    for (let s = 0; s <= nSteps; s++) {
+      t = s * dt;
+      // 1) durum geçişleri, hareket, enerji, arıza
+      for (const d of DR) {
+        const flying = d.st === 'out' || d.st === 'on' || d.st === 'back' || d.st === 'toRepair';
+        if (flying && s > 0) {
+          const de = (d.st === 'on' ? d.x.pOn / 3600 : d.rate) * dt;
+          d.used += de; d.energy += de; energy += de; d.flight += dt;
+          if (rnd() < dt / (sp.mtbfH * 3600)) { fail(d); continue; }
+        }
+        switch (d.st) {
+          case 'charge': if (t >= d.readyAt) { d.st = 'ready'; d.used = 0; } break;
+          case 'out':
+            moveLinear(d);
+            if (t >= d.t1) {
+              const occ = DR.find((o) => o !== d && o.st === 'on' && o.slot === d.slot);
+              d.st = 'on'; d.z = d.x.alt;
+              if (occ) { handovers++; startBack(occ, 'rth', 'Görev devredildi, istasyona dönüyor.'); }
+            }
+            break;
+          case 'on': {
+            const np = slotPos(d.slot, t);
+            if (d.tl && s % 3 === 0) { const h = hdgOf(d.pos, np); d.pos = np; push(d, 'cap', { cap: true, pi: 0, vg: vSlot, va: vSlot, hdg: h }); }
+            d.pos = np;
+            if (d.x.usable - d.used <= eRet(d) + d.x.eMargin) {
+              const j = d.slot;
+              startBack(d, 'rth', 'Batarya rezerv sınırında; yerine drone gelmeden ayrılmak zorunda kaldı.');
+              if (failT[j] === null) failT[j] = t;
+            }
+            break;
+          }
+          case 'back': moveLinear(d); if (t >= d.t1) land(d); break;
+          case 'toRepair': moveLinear(d); if (t >= d.t1) { d.pos = repair.slice(); d.z = 0; d.st = 'repair'; d.readyAt = t + sp.mttrH * 3600 * 0.4 * (0.5 + rnd()); push(d, 'repair', { msg: 'Tamir başladı (hafif arıza).' }); } break;
+          case 'down':
+            if (t >= d.t1) { d.st = 'tow'; d.from = d.pos.slice(); d.to = repair; d.t0 = t; d.t1 = t + dist(d.from, repair) * road / vGround; push(d, 'tow', { msg: 'Kurtarma aracı drone\'u aldı, tamir istasyonuna götürüyor.' }); }
+            break;
+          case 'tow': moveLinear(d); if (t >= d.t1) { d.pos = repair.slice(); d.st = 'repair'; d.readyAt = t + sp.mttrH * 3600 * (0.5 + rnd()); push(d, 'repair', { msg: 'Tamir başladı (kritik arıza).' }); } break;
+          case 'repair':
+            if (t >= d.readyAt) {
+              d.st = 'deliver'; d.from = repair.slice(); d.to = stations[d.x.station]; d.t0 = t; d.t1 = t + dist(d.from, d.to) * road / vGround;
+              d.used = 0; d.spare = d.spare.map(() => t);
+              push(d, 'deliver', { msg: 'Tamir tamamlandı, istasyona teslim ediliyor.' });
+            }
+            break;
+          case 'deliver': moveLinear(d); if (t >= d.t1) { d.pos = d.to.slice(); d.st = 'ready'; push(d, 'ready', { msg: 'Göreve hazır (yedekte).' }); } break;
+          default: break;
+        }
+      }
+      // 2) dağıtım: boş yuvaya hemen, dolu yuvaya sıcak devir için zamanında drone gönder
+      for (let j = 0; j < k; j++) {
+        if (DR.some((d) => d.st === 'out' && d.slot === j)) continue;
+        const occ = DR.find((d) => d.st === 'on' && d.slot === j);
+        let best = null;
+        for (const d of DR) {
+          if (d.st !== 'ready') continue;
+          let eta = d.x.tClimb + dist(stations[d.x.station], slotPos(j, t)) / d.x.vgT;
+          eta = d.x.tClimb + dist(stations[d.x.station], slotPos(j, t + eta)) / d.x.vgT;
+          // dönüş enerjisi de yetmeli
+          if (!best || eta < best.eta) best = { d, eta };
+        }
+        if (!best) continue;
+        if (!occ) { launch(best.d, j, best.eta, failT[j] !== null ? `Boş kalan devriye yuvası ${j + 1} için acil kalkış.` : `Devriye yuvası ${j + 1} için kalkış.`); continue; }
+        const leaveIn = (occ.x.usable - occ.used - eRet(occ) - occ.x.eMargin) / occ.x.pOn * 3600;
+        if (leaveIn <= best.eta + margin) launch(best.d, j, best.eta, `Sıcak devir: ${occ.x.name} yerine yuva ${j + 1}.`);
+      }
+      // 3) ölçümler
+      let occN = 0, readyN = 0, airN = 0;
+      for (let j = 0; j < k; j++) {
+        const has = DR.some((d) => d.st === 'on' && d.slot === j);
+        if (has) { occN++; if (failT[j] !== null) { resp.push(t - failT[j]); failT[j] = null; } }
+        if (warm !== null) {
+          if (!has && gapStart[j] === null) { gapStart[j] = t; gapsN++; }
+          if (has && gapStart[j] !== null) { maxGap = Math.max(maxGap, t - gapStart[j]); gapStart[j] = null; }
+        }
+      }
+      for (const d of DR) { if (d.st === 'ready') readyN++; if (d.st === 'out' || d.st === 'on' || d.st === 'back' || d.st === 'toRepair') airN++; }
+      if (warm === null && (occN === k || t >= 1800)) warm = t;
+      if (warm !== null && t > warm) { covAcc += occN / k * dt; if (occN === k) fullAcc += dt; }
+      if (readyN >= sp.reserve) resOk += dt;
+      if (series && s % 6 === 0) { series.occ.push(occN); series.ready.push(readyN); series.air.push(airN); }
+    }
+    gapStart.forEach((g) => { if (g !== null) maxGap = Math.max(maxGap, horizon - g); });
+    const span = Math.max(1, nSteps * dt - (warm || 0));
+    // kalan uçuşları zaman çizelgesinde kapat
+    if (record) DR.forEach((d) => { if (d.tl && d.tl.length && d.tl[d.tl.length - 1].t > horizon + 3600) d.tl = d.tl.filter((x) => x.t <= horizon + 3600); });
+    return {
+      coverage: covAcc / span, full: fullAcc / span, maxGapSec: maxGap, reserveAvail: resOk / (horizon + dt), failures, energyWh: energy, handovers, gaps: gapsN,
+      avgRespSec: resp.length ? resp.reduce((a, b) => a + b, 0) / resp.length : 0, setupSec: warm || 0,
+      drones: DR.map((d) => ({ sorties: d.sorties, failures: d.failures, flightSec: d.flight, energyWh: d.energy, timeline: d.tl })), series,
+    };
+  }
+
+  function planSecurity(input) {
+    const warnings = [];
+    const warn = (level, msg) => warnings.push({ level, msg });
+    const m = input.mission, env = input.env, costs = input.costs;
+    const sp = Object.assign({}, SEC_DEFAULTS, input.security || {}, { swapMin: m.swapMin });
+    sp.onStation = Math.max(1, Math.round(sp.onStation)); sp.reserve = Math.max(0, Math.round(sp.reserve));
+    sp.maxStations = Math.max(1, Math.round(sp.maxStations)); sp.runs = clamp(Math.round(sp.runs), 1, 60); sp.chargers = Math.max(1, Math.round(sp.chargers));
+    const parcelsIn = (input.parcels || []).filter((p) => p && p.pts && p.pts.length >= 3);
+    if (!parcelsIn.length) return { error: 'Güvenlik alanı için en az bir arsa sınırı gerekli. Haritada Arsa ekle aracını kullanın.' };
+    const pIdx = clamp(Math.round(input.active || 0), 0, parcelsIn.length - 1);
+    const P0 = parcelsIn[pIdx];
+    const origin = centroid(P0.pts);
+    const pj = projector(origin[0], origin[1]), toLL = (p) => pj.toLL(p);
+    let poly = P0.pts.map(pj.toXY);
+    if (signedArea(poly) < 0) poly = poly.slice().reverse();
+    const areaM2 = Math.abs(signedArea(poly));
+    const all = (input.drones || []).map((d, i) => ({ d, i })).filter((x) => x.d.enabled !== false);
+    if (!all.length) return { error: 'Filoda kullanılabilir drone yok. Filo sekmesinden drone ekleyin veya etkinleştirin.' };
+    const obsMax = (input.obstacles || []).reduce((a, o) => Math.max(a, +o.h || 0), 0);
+    const minAlt = obsMax + m.clearance + env.terrainVar;
+    if (minAlt > m.maxAlt) warn('crit', `Güvenli asgari irtifa (${minAlt.toFixed(0)} m) yasal sınırın (${m.maxAlt} m) üstünde.`);
+    const desired = all.map((x) => altitudeForGsd(m.gsdCm, x.d.hfov, x.d.imgW));
+    const alts = assignAltitudes(desired, minAlt, m.maxAlt, m.layering ? m.layerSep : 0, warn);
+    const k = sp.onStation, horizon = sp.hours * 3600;
+
+    // drone sabitleri
+    const ctxs = all.map((x, n) => makeCtx(x.d, alts[n], env, m, [0, 0], false));
+    const usable = [], reasons = {};
+    ctxs.forEach((c, n) => {
+      const d = all[n].d;
+      if (c.wAlt > d.maxWind) { reasons[all[n].i] = `Rüzgâr ${c.wAlt.toFixed(1)} m/s, drone sınırı ${d.maxWind} m/s.`; return; }
+      usable.push(n);
+    });
+    if (!usable.length) return { error: 'Rüzgâr hiçbir drone\'un sınırı içinde değil. Uçuş yapılamaz.' };
+    const fpW = Math.min(...usable.map((n) => ctxs[n].fpW));
+    const R = patrolRoute(poly, fpW);
+    const vSlot = Math.max(3, Math.min(...usable.map((n) => { const c = ctxs[n]; return Math.min(c.va, c.vgCap, c.d.type === 'fixed' ? 99 : c.d.vMax); })));
+    const consts = (n) => {
+      const c = ctxs[n], d = c.d;
+      let inv = 0;
+      for (let q = 0; q < 8; q++) { const a = q * Math.PI / 4, vg = groundSpeed([Math.sin(a), Math.cos(a)], c.wind, c.va); inv += 1 / (vg > 0.5 ? vg : 0.5); }
+      const vgT = 8 / inv, pT = power(d, c.va, c.rho);
+      const tClimb = c.alt / d.climb, tDesc = c.alt / d.descent;
+      return { name: d.name, idx: all[n].i, alt: c.alt, va: c.va, vgT, pT, pOn: power(d, Math.max(vSlot, d.type === 'fixed' ? d.vStall * 1.1 : 0), c.rho) * 1.06,
+        tClimb, eClimb: (c.pHover + d.mass * G * d.climb / (d.eta / 100)) * tClimb / 3600, tDesc, eDesc: 0.85 * c.pHover * tDesc / 3600,
+        climb: d.climb, descent: d.descent, usable: c.usable, full: c.full, eMargin: 0.03 * c.usable,
+        nb: d.source === 'fuel' ? 1 : Math.max(1, Math.round(d.batteries)), chargeSec: d.chargeMin * 60, fuel: d.source === 'fuel', ctx: c };
+    };
+    const base = usable.map(consts);
+
+    // talep noktaları (rota üzerinde eşit aralıklı) ve aday konumlar
+    const nDem = 120, demand = [], wts = [];
+    for (let q = 0; q < nDem; q++) { demand.push(routeAt(R, q * R.L / nDem)); wts.push(1); }
+    const cands = siteCandidates(poly, areaM2);
+    const n = base.length;
+    // istasyon sayısı alt sınırı: şarj kapasitesi, yedeklilik, menzil
+    const rangeMin = Math.min(...base.map((x) => x.usable / x.pT * 3600 * x.vgT));
+    let mMin = Math.max(1, Math.ceil(n / sp.chargers));
+    if (n >= 4 && sp.chargers >= 2) mMin = Math.max(mMin, 2);
+    mMin = Math.min(mMin, n, cands.length);
+    const placements = {};
+    const place = (mm) => (placements[mm] = placements[mm] || pMedian(cands, demand, wts, mm));
+    while (mMin < Math.min(n, cands.length) && place(mMin).maxD > 0.25 * rangeMin) mMin++;
+    const mMax = Math.max(mMin, Math.min(sp.maxStations, n, mMin + 2, cands.length));
+    if (mMin > sp.maxStations) warn('warn', `Şarj kapasitesi ve menzil için en az ${mMin} istasyon gerekiyor; azami istasyon sayısı (${sp.maxStations}) aşıldı.`);
+
+    // tamir istasyonu: arıza (rota) ve teslim (istasyon) yol mesafesini en aza indiren aday
+    const repairFor = (sites, perSite) => {
+      let best = null, bc = Infinity;
+      for (const c of cands) {
+        let s = 0;
+        for (let q = 0; q < demand.length; q++) s += dist(c, demand[q]);
+        s = s / demand.length * 2;
+        sites.forEach((st, si) => { s += dist(c, st) * perSite[si] / Math.max(1, n); });
+        if (s < bc) { bc = s; best = c; }
+      }
+      return best;
+    };
+    // dronelar istasyonlara: tipler karışık ve sayılar dengeli dağıtılır
+    const order = base.map((_, q) => q).sort((a, b) => (base[a].pOn / base[a].usable) - (base[b].pOn / base[b].usable));
+    const buildCfg = (mm) => {
+      const pl = place(mm), sites = pl.sites;
+      const dr = base.map((x) => Object.assign({}, x));
+      order.forEach((q, r) => { dr[q].station = r % sites.length; });
+      const perSite = sites.map((_, si) => dr.filter((x) => x.station === si).length);
+      return { mm, pl, sites, dr, repair: repairFor(sites, perSite) };
+    };
+    const configs = [];
+    for (let mm = mMin; mm <= mMax; mm++) {
+      const cfg = buildCfg(mm);
+      const S = { dr: cfg.dr, k, R, stations: cfg.sites, repair: cfg.repair, sp, horizon, vSlot };
+      const runs = [];
+      for (let r = 0; r < sp.runs; r++) runs.push(runSecurity(S, sp.seed + 1009 * r, false));
+      const covs = runs.map((x) => x.coverage).sort((a, b) => a - b);
+      const q10 = covs[Math.floor(0.1 * (covs.length - 1))];
+      const mean = (f) => runs.reduce((a, x) => a + f(x), 0) / runs.length;
+      configs.push({ m: mm, cfg, covMean: mean((x) => x.coverage), covP10: q10, covMin: covs[0], fullMean: mean((x) => x.full),
+        maxGapP90: runs.map((x) => x.maxGapSec).sort((a, b) => a - b)[Math.floor(0.9 * (runs.length - 1))],
+        reserveMean: mean((x) => x.reserveAvail), energyMean: mean((x) => x.energyWh), failuresMean: mean((x) => x.failures), respMean: mean((x) => x.avgRespSec), avgD: cfg.pl.avgD });
+    }
+    // güvenlik önce: en kötü senaryo kapsaması, sonra yedek bulunurluğu, sonra enerji, sonra daha az istasyon
+    const rk = (c) => [-Math.round(c.covP10 * 400), -Math.round(c.reserveMean * 100), Math.round(c.energyMean), c.m];
+    const chosen = configs.slice().sort((a, b) => { const A = rk(a), B = rk(b); for (let q = 0; q < A.length; q++) if (A[q] !== B[q]) return A[q] - B[q]; return 0; })[0];
+    const S = { dr: chosen.cfg.dr, k, R, stations: chosen.cfg.sites, repair: chosen.cfg.repair, sp, horizon, vSlot };
+    const rep = runSecurity(S, sp.seed, true);
+
+    // filo yeterliliği (analitik)
+    const avgD = chosen.cfg.pl.avgD;
+    const duty = base.map((x) => {
+      const tr = avgD / x.vgT, eOut = x.eClimb + tr * x.pT / 3600, eR = tr * x.pT / 3600 + x.eDesc;
+      const tOn = Math.max(0, x.usable - eOut - eR - x.eMargin) / x.pOn * 3600;
+      const cyc = tOn + x.tClimb + 2 * tr + x.tDesc + sp.swapMin * 60;
+      const period = x.fuel ? cyc : Math.max(cyc, (cyc + x.chargeSec * 0.85) / x.nb);
+      const dty = period > 0 ? tOn / period : 0;
+      const downH = sp.mttrH + 0.3;
+      const a = 1 / (1 + dty / sp.mtbfH * downH);
+      return { name: x.name, tOn, duty: dty, avail: a, cap: dty * a };
+    });
+    const capSum = duty.reduce((a, x) => a + x.cap, 0), capAvg = capSum / n;
+    const needed = capAvg > 0 ? Math.ceil(k * 1.1 / capAvg) + sp.reserve : Infinity;
+    const achievable = capAvg > 0 ? Math.max(0, Math.floor(Math.max(0, capSum - sp.reserve * capAvg) / 1.1)) : 0;
+    const fleet = { owned: n, needed, onStation: k, reserve: sp.reserve, achievable, capSum, duty };
+    duty.forEach((x) => { if (x.tOn <= 0) warn('crit', `${x.name}: batarya, istasyondan devriye rotasına gidiş dönüşe bile yetmiyor.`); });
+    if (n < needed) warn('crit', `Aynı anda ${k} drone devriyesi ve ${sp.reserve} hazır yedek için en az ${needed} drone gerekir; filoda ${n} uygun drone var. Bu filoyla sürekli sağlanabilen devriye: ${achievable} drone.`);
+    if (rep.coverage < 0.97) warn('crit', `Güvenlik kapsaması %${(rep.coverage * 100).toFixed(1)}. Drone, yedek batarya veya şarj yuvası ekleyin.`);
+    else if (chosen.covP10 < 0.98) warn('warn', `En kötü senaryolarda (%10) kapsama %${(chosen.covP10 * 100).toFixed(1)} seviyesine iniyor.`);
+    if (rep.reserveAvail < 0.9 && sp.reserve > 0) warn('warn', `Hazır yedek drone hedefi zamanın yalnızca %${(rep.reserveAvail * 100).toFixed(0)}'inde sağlanıyor.`);
+    Object.entries(reasons).forEach(([i, r]) => warn('warn', `${input.drones[i].name}: ${r} Planlamaya katılmadı.`));
+
+    const ll = (p) => toLL(p);
+    const drones = (input.drones || []).map((d, i) => {
+      const q = base.findIndex((x) => x.idx === i);
+      if (q < 0) return { name: d.name, idx: i, used: false, empty: true, reason: reasons[i] || 'Kullanım dışı olarak işaretli.', timeline: [], parcelIdx: [], homeIdx: -1, spec: d, type: d.type, source: d.source };
+      const x = chosen.cfg.dr[q], c = x.ctx, rr = rep.drones[q], st = chosen.cfg.sites[x.station];
+      return { name: d.name, idx: i, used: true, empty: false, reason: null, type: d.type, source: d.source, spec: d, homeIdx: x.station, stationIdx: x.station, parcelIdx: [pIdx],
+        alt: c.alt, gsdCm: c.gsd * 100, va: c.va, vgCap: c.vgCap, wAlt: c.wAlt, rho: c.rho, speeds: c.sp, usable: c.usable, full: c.full, photoDist: c.photoDist,
+        timeSec: horizon, energyWh: rr.energyWh, sorties: rr.sorties, failures: rr.failures, flightSec: rr.flightSec, duty: duty[q].duty,
+        parts: { climb: 0, cruise: rr.energyWh, turn: 0, hover: 0 }, distM: 0, photos: 0, maxUsePct: 100,
+        timeline: rr.timeline.map((s) => Object.assign(s, { ll: ll([s.x, s.y]) })), lanes: [],
+        wps: [{ p: st, z: 0 }, { p: st, z: c.alt }, ...R.route.map((p) => ({ p, z: c.alt, cap: true })), { p: st, z: c.alt }, { p: st, z: 0 }]
+          .map((w) => ({ ll: ll(w.p), z: w.z, cap: !!w.cap, laneStart: false, hover: 0 })) };
+    });
+    const day = 86400 / horizon;
+    const elecWh = base.filter((x) => !x.fuel).reduce((a, x, q) => a + rep.drones[base.indexOf(x)].energyWh, 0) * day;
+    const fuelWh = base.filter((x) => x.fuel).reduce((a, x) => a + rep.drones[base.indexOf(x)].energyWh, 0) * day;
+    const batCycles = base.filter((x) => !x.fuel).reduce((a, x) => a + rep.drones[base.indexOf(x)].energyWh / x.full, 0) * day;
+    const dailyFuelL = fuelWh / 1000 * 0.55 / 0.74;
+    const dailyElecTL = elecWh / 1000 / (costs.chargerEff / 100) * costs.elecPrice, dailyFuelTL = dailyFuelL * costs.fuelPrice;
+    const dailyWearTL = batCycles * costs.batteryPrice / Math.max(1, costs.batteryCycles);
+    return {
+      mode: 'security', origin, windowSec: horizon, minAlt, activeParcel: pIdx,
+      parcel: { name: P0.name || 'Güvenlik alanı', areaHa: areaM2 / 1e4, perimM: perimeter(poly) },
+      route: R.route.map(ll), routeLenM: R.L, rings: R.rings, loopSec: R.L / vSlot, vSlot, k, reserve: sp.reserve,
+      revisitSec: R.L / vSlot / k,
+      stations: chosen.cfg.sites.map((p, si) => ({ ll: ll(p), drones: chosen.cfg.dr.filter((x) => x.station === si).map((x) => x.idx), chargers: sp.chargers })),
+      repair: { ll: ll(chosen.cfg.repair) }, slots: k,
+      configs: configs.map((c) => ({ m: c.m, covMean: c.covMean, covP10: c.covP10, covMin: c.covMin, fullMean: c.fullMean, maxGapP90: c.maxGapP90,
+        reserveMean: c.reserveMean, energyMean: c.energyMean, failuresMean: c.failuresMean, respMean: c.respMean, avgD: c.avgD, chosen: c === chosen })),
+      chosenM: chosen.m, runs: sp.runs, fleet,
+      rep: { coverage: rep.coverage, full: rep.full, maxGapSec: rep.maxGapSec, reserveAvail: rep.reserveAvail, failures: rep.failures, energyWh: rep.energyWh,
+        avgRespSec: rep.avgRespSec, setupSec: rep.setupSec, handovers: rep.handovers, gaps: rep.gaps, series: rep.series, seriesStep: 60 },
+      drones, warnings,
+      homes: [], parcels: [], baseline: { energyWh: 0, timeSec: 0 },
+      totals: { areaHa: areaM2 / 1e4, usedDrones: n, energyWh: rep.energyWh, revisitSec: R.L / vSlot / k, dailyWh: elecWh + fuelWh, dailyElecTL, dailyFuelL, dailyFuelTL, dailyWearTL,
+        dailyTL: dailyElecTL + dailyFuelTL + dailyWearTL, batCycles },
+    };
+  }
+
   /* Tek arsa, tek kalkış için eski arayüz: tüm dronelar o arsada, tek döngü. */
   function plan(input) {
     const r = planMission(Object.assign({}, input, {
@@ -1433,7 +1879,7 @@ const Engine = (() => {
     return { areaHa: Math.abs(signedArea(poly)) / 1e4, perimM: perimeter(poly) };
   }
 
-  return { PRESETS, BASE, airDensity, power, hoverPower, characteristicSpeeds, altitudeForGsd, groundSpeed, lanesInBand, splitBands, tour, plan, planMission, polygonStats, projector };
+  return { PRESETS, BASE, airDensity, power, hoverPower, characteristicSpeeds, altitudeForGsd, groundSpeed, lanesInBand, splitBands, tour, plan, planMission, planSecurity, SEC_DEFAULTS, polygonStats, projector };
 })();
 if (typeof module !== 'undefined') module.exports = Engine;
 if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof importScripts === 'function') {
@@ -1556,27 +2002,46 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   const NAMES = ['Kartal-1', 'Kartal-2', 'Şahin', 'Atmaca', 'Doğan', 'Çakır'];
   const preset = (id) => Engine.PRESETS.find((p) => p.id === id) || Engine.PRESETS[0];
   const newDrone = (pid, name) => Object.assign({ name, preset: pid, enabled: true, manualParcel: 0, manualHome: 0 }, JSON.parse(JSON.stringify(preset(pid).spec)));
+  // Varsayılan alan: Ataköy Konakları ile Hava Harp Okulu arası, Ayamama kanalı ve sahil (Bakırköy, İstanbul)
+  const ATAKOY = [[40.97689, 28.84113], [40.9774, 28.84799], [40.97575, 28.85184], [40.97367, 28.85074], [40.97201, 28.84909],
+    [40.96911, 28.84689], [40.96673, 28.8458], [40.96673, 28.83975], [40.97098, 28.84058]];
   function defaults() {
-    const d = [newDrone('kompakt', 'Kartal-1'), newDrone('kompakt', 'Kartal-2'), newDrone('kurumsal', 'Şahin'), newDrone('vtol', 'Atmaca')];
-    d[1].manualParcel = 1; d[1].manualHome = 1; d[3].manualParcel = -1;
+    const d = [newDrone('kompakt', 'Kartal-1'), newDrone('kompakt', 'Kartal-2'), newDrone('kompakt', 'Kartal-3'), newDrone('kompakt', 'Kartal-4'),
+      newDrone('devriye', 'Doğan-1'), newDrone('devriye', 'Doğan-2')];
     return {
-      parcels: [
-        { name: 'Tarla', pts: [[41.1130, 28.1570], [41.1138, 28.1640], [41.1110, 28.1668], [41.1078, 28.1645], [41.1085, 28.1580]] },
-        { name: 'Bahçe', pts: [[41.1200, 28.1880], [41.1206, 28.1925], [41.1180, 28.1930], [41.1176, 28.1886]] },
-      ],
-      homes: [{ name: 'Ana depo', ll: [41.1084, 28.1598] }, { name: 'Bahçe kapısı', ll: [41.1190, 28.1905] }],
+      parcels: [{ name: 'Ataköy - Hava Harp Okulu', pts: ATAKOY }],
+      homes: [{ name: 'Ana kapı', ll: [40.9699, 28.8424] }],
       active: 0,
-      pois: [[41.1127, 28.1592], [41.1104, 28.1655], [41.1089, 28.1617], [41.1196, 28.1915]],
-      obstacles: [{ lat: 41.1121, lon: 28.1622, h: 18 }],
+      pois: [[40.9714, 28.8421], [40.9727, 28.8478]],
+      obstacles: [{ lat: 40.9692, lon: 28.8432, h: 30 }, { lat: 40.9748, lon: 28.8468, h: 25 }],
       drones: d,
-      env: { windSpeed: 5, windFrom: 30, alpha: 0.14, tempC: 17, elevMSL: 60, terrainVar: 4 },
-      mission: { mode: 'coverage', gsdCm: 2.5, frontOverlap: 75, sideOverlap: 65, angleMode: 'auto', angle: 90, weight: 30,
+      env: { windSpeed: 5, windFrom: 30, alpha: 0.14, tempC: 17, elevMSL: 10, terrainVar: 3 },
+      mission: { mode: 'security', gsdCm: 2.5, frontOverlap: 75, sideOverlap: 65, angleMode: 'auto', angle: 90, weight: 30,
         layering: true, layerSep: 10, clearance: 15, maxAlt: 120, reservePct: 25, swapMin: 4, inspectSec: 15, opsHours: 6, repeatMin: 30,
         selection: 'auto', continuous: true },
+      security: Object.assign({}, Engine.SEC_DEFAULTS),
       costs: { elecPrice: 3.2, chargerEff: 85, fuelPrice: 52, batteryPrice: 9500, batteryCycles: 300 },
       baseLayer: 'sat',
     };
   }
+  const SEC_FIELDS = [
+    { k: 'onStation', l: 'Aynı anda devriyedeki drone', u: 'adet', min: 1, max: 6, step: 1, h: 'Güvenlik seviyesi: her an havada devriye gezen drone sayısı.' },
+    { k: 'reserve', l: 'Her an hazır yedek', u: 'adet', min: 0, max: 6, step: 1, h: 'İstasyonda şarjlı bekleyen, arızada hemen kalkacak drone.' },
+    { k: 'chargers', l: 'İstasyon başına şarj yuvası', u: 'adet', min: 1, max: 12, step: 1 },
+    { k: 'maxStations', l: 'Azami istasyon sayısı', u: 'adet', min: 1, max: 8, step: 1 },
+    { k: 'marginMin', l: 'Görev devri payı', u: 'dk', min: 0, max: 15, step: 0.5, wide: true, h: 'Yedek drone, görevdeki drone ayrılmadan bu kadar önce yuvaya varacak şekilde kalkar.' },
+  ];
+  const SEC_FAIL_FIELDS = [
+    { k: 'mtbfH', l: 'Arızalar arası ortalama süre', u: 'uçuş sa', min: 1, max: 100000, step: 1, h: 'MTBF. Arızalar bu ortalamayla rastgele (üstel) oluşur.' },
+    { k: 'mttrH', l: 'Ortalama tamir süresi', u: 'saat', min: 0.1, max: 72, step: 0.1 },
+    { k: 'critPct', l: 'Kritik arıza payı', u: '%', min: 0, max: 100, step: 5, h: 'Kritik arızada acil iniş ve araçla kurtarma; hafif arızada drone uçarak tamire gider.' },
+    { k: 'groundKmh', l: 'Kurtarma aracı hızı', u: 'km/sa', min: 5, max: 90, step: 1 },
+  ];
+  const SEC_SIM_FIELDS = [
+    { k: 'hours', l: 'Benzetim süresi', u: 'saat', min: 1, max: 72, step: 1 },
+    { k: 'runs', l: 'Rastgele deneme sayısı', u: 'adet', min: 1, max: 60, step: 1, h: 'Her istasyon düzeni bu kadar farklı arıza senaryosuyla denenir.' },
+    { k: 'seed', l: 'Rastgelelik tohumu', u: '', min: 1, max: 99999, step: 1, wide: true, h: 'Aynı tohum aynı arıza senaryosunu üretir; değiştirerek başka senaryoları görün.' },
+  ];
 
   /* ---------- Doğrulama: içe aktarılan veya saklanan veriye güvenilmez ---------- */
   const num = (v, f, fb) => { const x = Number(v); return Number.isFinite(x) ? Math.min(f.max, Math.max(f.min, x)) : fb; };
@@ -1617,9 +2082,10 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     const pull = (src, dst, fields) => { if (src && typeof src === 'object') fields.forEach((f) => { dst[f.k] = num(src[f.k], f, dst[f.k]); }); };
     pull(raw.env, d.env, ENV_FIELDS);
     pull(raw.costs, d.costs, COST_FIELDS);
+    pull(raw.security, d.security, [...SEC_FIELDS, ...SEC_FAIL_FIELDS, ...SEC_SIM_FIELDS]);
     pull(raw.mission, d.mission, [...MISSION_FIELDS, ...OPS_FIELDS, { k: 'weight', min: 0, max: 100 }, { k: 'angle', min: 0, max: 179 }]);
     if (raw.mission) {
-      if (['coverage', 'perimeter', 'poi'].includes(raw.mission.mode)) d.mission.mode = raw.mission.mode;
+      if (['security', 'coverage', 'perimeter', 'poi'].includes(raw.mission.mode)) d.mission.mode = raw.mission.mode;
       d.mission.angleMode = raw.mission.angleMode === 'manual' ? 'manual' : 'auto';
       d.mission.layering = raw.mission.layering !== false;
       d.mission.selection = raw.mission.selection === 'manual' ? 'manual' : 'auto';
@@ -1629,9 +2095,10 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     return d;
   }
 
-  const STORE_KEY = 'nobetci.plan.v2';
+  // v3: 7/24 güvenlik modu ve Ataköy varsayılanı. Eski kayıtlar bilinçli okunmaz; Ayar yükle ile JSON'dan aktarılabilir.
+  const STORE_KEY = 'nobetci.plan.v3';
   let S;
-  try { S = sanitize(JSON.parse(localStorage.getItem(STORE_KEY) || localStorage.getItem('nobetci.plan.v1') || 'null')); } catch (e) { S = defaults(); }
+  try { S = sanitize(JSON.parse(localStorage.getItem(STORE_KEY) || 'null')); } catch (e) { S = defaults(); }
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* özel pencere: saklama yok */ } };
 
   let R = null; // son plan
@@ -1708,7 +2175,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     S.parcels.forEach((p, i) => {
       const pl = L.polygon(p.pts, polyStyle(i)).addTo(gParcel);
       pl.bindTooltip(`${letter(i)}  ${p.name}`, { permanent: true, direction: 'center', className: 'parcel-label', interactive: false });
-      pl.on('click', () => { if (!tool && S.active !== i) { S.active = i; drawParcels(); renderArazi(); save(); } });
+      pl.on('click', () => { if (!tool && S.active !== i) { S.active = i; changed('parcel'); } });
       parcelLayers[i] = pl;
     });
     const p = S.parcels[S.active];
@@ -1741,9 +2208,22 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       mk.on('contextmenu', () => { S.obstacles.splice(i, 1); changed('obstacle'); });
     });
   }
+  function drawSecurityMap() {
+    // devriye rotası: yuvalar bu kapalı rotada eşit aralıkla döner
+    L.polyline(R.route, { color: '#ffffff', weight: 6, opacity: 0.55, interactive: false }).addTo(gRoutes);
+    L.polyline(R.route, { color: '#f2c14e', weight: 3, opacity: 1, interactive: false }).addTo(gRoutes);
+    R.stations.forEach((s, si) => {
+      const names = s.drones.map((i) => R.drones[i].name).join(', ');
+      L.marker(s.ll, { icon: divIcon(`<div class="pin-st"><i class="ph-fill ph-charging-station"></i><span>Ş${si + 1}</span></div>`, [44, 30]), title: `Şarj ve kalkış istasyonu Ş${si + 1}: ${names}`, alt: `İstasyon Ş${si + 1}`, zIndexOffset: 950 })
+        .bindTooltip(`Ş${si + 1}: ${esc(names)} (${s.chargers} şarj yuvası)`, { direction: 'top', offset: [0, -14] }).addTo(gRoutes);
+    });
+    L.marker(R.repair.ll, { icon: divIcon('<div class="pin-rep"><i class="ph-fill ph-wrench"></i></div>', [30, 30]), title: 'Tamir istasyonu', alt: 'Tamir istasyonu', zIndexOffset: 960 })
+      .bindTooltip('Tamir istasyonu', { direction: 'top', offset: [0, -14] }).addTo(gRoutes);
+  }
   function drawRoutes() {
     gRoutes.clearLayers();
     if (!R || R.error) return;
+    if (R.mode === 'security') { drawSecurityMap(); return; }
     R.drones.forEach((d, i) => {
       if (d.empty) return;
       const col = MAP_COLORS[i % 6], isSel = i === selected;
@@ -1878,7 +2358,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
         h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': `${p.name} sınırını yeniden çiz`, onclick: (e) => { e.stopPropagation(); redrawIdx = i; tool = null; setTool('draw'); } }, icon('pencil-simple')),
         h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': `${p.name} arsasına odaklan`, onclick: (e) => { e.stopPropagation(); map.fitBounds(L.latLngBounds(p.pts), { padding: [40, 40] }); } }, icon('crosshair')),
         h('button', { class: 'btn icon ghost danger', type: 'button', 'aria-label': `${p.name} sil`, disabled: S.parcels.length <= 1, onclick: (e) => { e.stopPropagation(); removeParcel(i); } }, icon('trash')));
-      const sel = () => { S.active = i; drawParcels(); renderArazi(); save(); };
+      const sel = () => { S.active = i; changed('parcel'); };
       row.addEventListener('click', sel);
       row.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === row) { e.preventDefault(); sel(); } });
       return row;
@@ -1978,6 +2458,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
 
   /* ---------- Görev, ortam, maliyet sekmeleri ---------- */
   const MODE_HELP = {
+    security: 'Seçili arsada 7/24 güvenlik devriyesi. Şarj ve kalkış istasyonları, tamir istasyonu ve görev devirleri otomatik planlanır; rastgele arızalar dahil binlerce saatlik benzetimle en güvenli düzen seçilir.',
     coverage: 'Her arsa bindirmeli şeritlerle taranır. Arsa, ona atanan dronelar arasında iş hızı ve enerji verimine göre bölüşülür.',
     perimeter: 'Dronelar arsa sınırlarının içinden zaman kaydırmalı tur atar. Sürekli gözlemde batarya değişimleri sırasında da devriye sürer.',
     poi: 'İlgi noktaları bulundukları arsaya, oradan da dronelara bölüştürülür; her drone için en kısa sıra (en yakın komşu ve 2-opt) bulunur.',
@@ -1990,6 +2471,8 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     $$('#modeSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === S.mission.mode));
     $$('#selSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.sel === S.mission.selection));
     $('#modeHelp').textContent = MODE_HELP[S.mission.mode];
+    const sec = S.mission.mode === 'security';
+    $('#secBox').hidden = !sec; $('#flowBox').hidden = sec; $('#angleBox').hidden = sec || S.mission.mode !== 'coverage';
     $('#selHelp').textContent = SEL_HELP[S.mission.selection];
     $('#continuous').checked = !!S.mission.continuous;
     $('#weight').value = S.mission.weight;
@@ -2034,7 +2517,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     clearTimeout(timer);
     timer = setTimeout(recompute, 160);
   }
-  const inputForEngine = () => JSON.parse(JSON.stringify({ parcels: S.parcels, homes: S.homes, pois: S.pois, obstacles: S.obstacles, drones: S.drones, env: S.env, mission: S.mission, costs: S.costs }));
+  const inputForEngine = () => JSON.parse(JSON.stringify({ parcels: S.parcels, homes: S.homes, pois: S.pois, obstacles: S.obstacles, drones: S.drones, env: S.env, mission: S.mission, costs: S.costs, security: S.security, active: S.active }));
   let t0 = 0;
   function setBusy(on) {
     if (on) $('#hdrStatus').replaceChildren(h('span', { class: 'busy', 'aria-hidden': 'true' }), h('span', { text: 'Plan hesaplanıyor' }));
@@ -2068,12 +2551,20 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     if (R.error) { $('#hdrStatus').replaceChildren(icon('warning-octagon', true), h('span', { text: R.error })); $('#hdrStatus').firstChild.style.color = 'var(--crit)'; log('Plan', R.error, 'crit', { replacePlan: true }); return; }
     const crit = R.warnings.filter((w) => w.level === 'crit').length;
     const T = R.totals;
+    if (R.mode === 'security') {
+      $('#hdrStatus').replaceChildren(icon(crit ? 'warning-octagon' : 'shield-check', true),
+        h('span', null, h('strong', { text: `Güvenlik %${fmt(R.rep.coverage * 100, 2)}` }), `, ${R.stations.length} istasyon, ${R.k} devriye + ${R.reserve} yedek, ${R.rep.failures} arıza / ${fmt(R.windowSec / 3600)} sa`));
+      $('#hdrStatus').firstChild.style.color = crit ? 'var(--crit)' : 'var(--ok)';
+      if (Number($('#simSpeed').value) < 900) $('#simSpeed').value = '3600';
+      log('Plan', `Güvenlik planı: ${R.stations.length} şarj/kalkış istasyonu ve 1 tamir istasyonu; ${R.configs.length} düzen × ${R.runs} rastgele senaryo denendi, kapsama %${fmt(R.rep.coverage * 100, 2)} (${fmt(ms)} ms).`, crit ? 'crit' : 'ok', { replacePlan: true });
+      return;
+    }
     $('#hdrStatus').replaceChildren(icon(crit ? 'warning-octagon' : 'check-circle', true),
       h('span', null, h('strong', { text: modeName(R.mode) }), `, ${S.parcels.length} arsa, ${T.usedDrones}/${S.drones.length} drone, ${R.continuous ? 'ortalama tekrar ' + fmtDur(T.revisitSec) : 'döngü ' + fmtDur(T.makespanSec)}`));
     $('#hdrStatus').firstChild.style.color = crit ? 'var(--crit)' : 'var(--ok)';
     log('Plan', `Plan güncellendi: ${modeName(R.mode).toLowerCase()}, ${T.usedDrones} drone seçildi, ${R.continuous ? fmt(S.mission.opsHours, 1) + ' saatlik sürekli gözlem' : 'tek döngü'} (${fmt(ms)} ms).`, crit ? 'crit' : 'ok', { replacePlan: true });
   }
-  const modeName = (m) => ({ coverage: 'Alan tarama', perimeter: 'Çevre devriyesi', poi: 'Noktasal kontrol' }[m]);
+  const modeName = (m) => ({ security: '7/24 güvenlik', coverage: 'Alan tarama', perimeter: 'Çevre devriyesi', poi: 'Noktasal kontrol' }[m]);
 
   function updateWind() {
     $('#windArrow').style.transform = `rotate(${(S.env.windFrom + 180) % 360}deg)`;
@@ -2093,6 +2584,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   function renderResults() {
     const box = $('#results');
     if (!R || R.error) { box.replaceChildren(h('h2', { text: 'Plan özeti' }), h('div', { class: 'warn crit' }, icon('warning-octagon', true), h('span', { text: R ? R.error : 'Plan bekleniyor.' }))); return; }
+    if (R.mode === 'security') { renderSecurityResults(box); return; }
     const T = R.totals, B = R.baseline;
     const summary = h('div', { class: 'summary' },
       R.continuous
@@ -2185,6 +2677,127 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       drawTimeChart('cBat', sd, (s) => s.bat, '%', 100 - 100 * sd.usable / (sd.full || 1), [0, 100]);
       if (sp && R.continuous) drawSeriesChart('cOn', sp);
     }
+  }
+  const fmtSec = (s) => (!(s > 0) ? 'yok' : s < 90 ? `${Math.round(s)} sn` : fmtDur(s));
+  function renderSecurityResults(box) {
+    const r = R.rep, T = R.totals, F = R.fleet, chosen = R.configs.find((c) => c.chosen) || R.configs[0];
+    const summary = h('div', { class: 'summary' },
+      h('div', null, h('b', { text: '%' + fmt(r.coverage * 100, 2) }), h('span', { text: 'güvenlik kapsaması' }),
+        h('div', { class: 'delta', style: 'color:var(--muted)', text: `kötü senaryoda (%10) %${fmt(chosen.covP10 * 100, 2)}` })),
+      h('div', null, h('b', { text: fmtSec(r.maxGapSec) }), h('span', { text: 'en uzun devriye boşluğu' }),
+        h('div', { class: 'delta', style: 'color:var(--muted)', text: `ort. müdahale ${fmtSec(r.avgRespSec)}` })),
+      h('div', null, h('b', { text: '%' + fmt(r.reserveAvail * 100, 0) }), h('span', { text: `${R.reserve} hazır yedek bulunurluğu` })),
+      h('div', null, h('b', { text: fmt(T.dailyTL) + ' TL' }), h('span', { text: 'günlük işletme maliyeti' })));
+    const line = h('div', { class: 'costline' },
+      h('span', null, 'Arıza ', h('b', { text: `${r.failures} (beklenen ${fmt(chosen.failuresMean, 1)})` })),
+      h('span', null, 'Görev devri ', h('b', { text: fmt(r.handovers) })),
+      h('span', null, 'Her noktaya ziyaret ', h('b', { text: fmtSec(R.revisitSec) })),
+      h('span', null, 'Rota ', h('b', { text: `${fmt(R.routeLenM / 1000, 2)} km, ${R.rings} halka` })),
+      h('span', null, 'İlk kurulum ', h('b', { text: fmtSec(r.setupSec) })),
+      h('span', null, 'Günlük enerji ', h('b', { text: fmt(T.dailyWh / 1000, 1) + ' kWh' })),
+      h('span', null, 'Batarya aşınması ', h('b', { text: fmt(T.dailyWearTL) + ' TL' })),
+      h('span', null, 'Asgari güvenli irtifa ', h('b', { text: fmt(R.minAlt) + ' m' })));
+    const warns = R.warnings.length ? R.warnings.map((w) => h('div', { class: 'warn ' + w.level }, icon(w.level === 'crit' ? 'warning-octagon' : 'warning', true),
+      h('span', null, h('span', { class: 'lvl', text: w.level === 'crit' ? 'Kritik: ' : 'Dikkat: ' }), w.msg)))
+      : [h('div', { class: 'warn ok' }, icon('shield-check', true), h('span', { text: 'Devriye, yedek ve tamir döngüsü güvenlik hedefini karşılıyor.' }))];
+
+    const stations = R.stations.map((s, si) => h('div', { class: 'row-item' }, h('span', { class: 'tagk', text: 'Ş' + (si + 1) }),
+      h('div', { class: 'grow' }, h('div', { text: `Şarj ve kalkış istasyonu, ${s.chargers} şarj yuvası` }), h('div', { class: 'sub num', text: `${s.ll[0].toFixed(5)}, ${s.ll[1].toFixed(5)}` }),
+        h('div', { class: 'chips' }, ...s.drones.map((i) => h('span', { class: 'chip' }, h('span', { class: 'swatch', style: `background:${dColor(i)}` }), R.drones[i].name)))),
+      h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': `Ş${si + 1} istasyonuna odaklan`, onclick: () => map.setView(s.ll, Math.max(map.getZoom(), 17)) }, icon('crosshair'))));
+    const repair = h('div', { class: 'row-item' }, h('span', { class: 'pin-rep', style: 'width:26px;height:26px;font-size:15px' }, icon('wrench', true)),
+      h('div', { class: 'grow' }, h('div', { text: 'Tamir istasyonu' }), h('div', { class: 'sub num', text: `${R.repair.ll[0].toFixed(5)}, ${R.repair.ll[1].toFixed(5)}` }),
+        h('div', { class: 'sub', text: 'Arıza noktalarına ve istasyonlara toplam yol süresi en kısa olan konum.' })),
+      h('button', { class: 'btn icon ghost', type: 'button', 'aria-label': 'Tamir istasyonuna odaklan', onclick: () => map.setView(R.repair.ll, Math.max(map.getZoom(), 17)) }, icon('crosshair')));
+    const saveHomes = h('button', { class: 'btn', type: 'button', onclick: () => {
+      S.homes = R.stations.map((s, si) => ({ name: `İstasyon Ş${si + 1}`, ll: s.ll.slice() }));
+      S.drones.forEach((d) => { d.manualHome = 0; });
+      log('Plan', `${R.stations.length} istasyon kalkış noktası olarak kaydedildi.`, 'ok');
+      toast('İstasyonlar kalkış noktası olarak kaydedildi.'); changed('home'); renderFleet();
+    } }, icon('floppy-disk'), 'İstasyonları kalkış noktası yap');
+
+    const enough = F.owned >= F.needed;
+    const fleetBox = h('div', { class: 'pres' },
+      h('div', { class: 'pres-head' }, icon(enough ? 'check-circle' : 'warning-octagon', true), h('b', { text: enough ? 'Filo yeterli' : 'Filo yetersiz' })),
+      h('div', { class: 'dres-grid' },
+        h('div', null, h('b', { text: fmt(F.owned) }), 'uygun drone'),
+        h('div', null, h('b', { text: fmt(F.needed) }), 'gereken (yedek dahil)'),
+        h('div', null, h('b', { text: fmt(F.achievable) }), 'sürdürülebilir devriye')),
+      h('p', { class: 'chart-cap', text: `Bir drone zamanının ortalama %${fmt(F.duty.reduce((a, x) => a + x.duty, 0) / F.duty.length * 100)} kadarını devriyede geçirir; kalanı gidiş, dönüş, batarya değişimi ve şarj beklemesidir. Gereken sayıya arıza ve tamir süresi de katılmıştır.` }));
+
+    const cfgRows = R.configs.map((c) => h('tr', { class: c.chosen ? 'on' : null },
+      h('td', null, c.chosen ? h('b', { text: `${c.m} (seçilen)` }) : String(c.m)),
+      h('td', { text: '%' + fmt(c.covMean * 100, 2) }), h('td', { text: '%' + fmt(c.covP10 * 100, 2) }),
+      h('td', { text: fmtSec(c.maxGapP90) }), h('td', { text: '%' + fmt(c.reserveMean * 100, 0) }), h('td', { text: fmt(c.energyMean / 1000, 1) + ' kWh' })));
+    const cfgTable = h('div', { class: 'cfgwrap' }, h('table', { class: 'cfgt' },
+      h('thead', null, h('tr', null, ...['İstasyon', 'Kapsama', 'Kötü %10', 'Boşluk', 'Yedek', 'Enerji'].map((t) => h('th', { scope: 'col', text: t })))),
+      h('tbody', null, cfgRows)));
+
+    const dlist = R.drones.map((d, i) => {
+      if (!d.used) return h('div', { class: 'sel-row off' }, h('span', { class: 'swatch', style: `background:${dColor(i)};margin-top:4px` }), h('b', { text: d.name }), h('span', { class: 'badge off', text: 'Dışarıda' }), h('div', { class: 'why', text: d.reason || '' }));
+      const card = h('div', { class: 'dres', role: 'button', tabindex: 0, 'aria-pressed': i === selected, 'aria-label': `${d.name} ayrıntılarını göster` });
+      const sel = () => { selected = i; renderResults(); renderSimDrones(); updateGauges(); };
+      card.addEventListener('click', sel);
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel(); } });
+      card.append(
+        h('div', { class: 'dres-head' }, h('span', { class: 'swatch', style: `background:${dColor(i)}` }), h('b', { text: d.name }),
+          h('span', { class: 'tagk', text: 'Ş' + (d.stationIdx + 1) }), h('span', { class: 'dres-alt' }, `${d.alt} `, h('small', { text: 'm' }))),
+        h('div', { class: 'dres-grid' },
+          h('div', null, h('b', { text: fmtDur(d.flightSec) }), 'uçuş'),
+          h('div', null, h('b', { text: fmt(d.sorties) }), 'sorti'),
+          h('div', null, h('b', { text: fmt(d.failures) }), 'arıza'),
+          h('div', null, h('b', { text: fmt(d.energyWh / 1000, 2) + ' kWh' }), 'enerji'),
+          h('div', null, h('b', { text: '%' + fmt(d.duty * 100) }), 'devriye oranı'),
+          h('div', null, h('b', { text: fmt(d.va, 1) + ' m/s' }), 'hava hızı')),
+        h('div', { class: 'dres-foot' }, h('span', { class: 'sub', text: `GSD ${fmt(d.gsdCm, 1)} cm/px` }),
+          h('button', { class: 'btn', type: 'button', onclick: (e) => { e.stopPropagation(); exportPlan(d); } }, icon('download-simple'), 'Devriye görevi')));
+      return card;
+    });
+    const sd = R.drones[selected] && R.drones[selected].used ? R.drones[selected] : R.drones.find((d) => d.used);
+    box.replaceChildren(...[
+      h('h2', { text: `7/24 güvenlik: ${R.parcel.name}` }), summary, line,
+      h('h2', { text: 'Uyarılar' }), h('div', { class: 'warns' }, warns),
+      h('h2', { text: 'Görevdeki drone sayısı' }), chartBox('cOcc', `24 saat boyunca devriyedeki drone sayısı. Hedef ${R.k}; altına düşen anlar arıza veya geç devirdir.`),
+      h('h2', { text: 'Hazır yedek drone' }), chartBox('cReady', `İstasyonda şarjlı bekleyen drone sayısı. Hedef en az ${R.reserve}.`),
+      h('h2', { text: 'İstasyon yerleşimi' }), h('div', { class: 'list' }, stations, repair), h('div', { class: 'add-row' }, saveHomes),
+      h('h2', { text: 'Filo yeterliliği' }), fleetBox,
+      h('h2', { text: 'Düzen karşılaştırması' }), cfgTable,
+      h('p', { class: 'chart-cap', text: `Her istasyon sayısı ${R.runs} farklı rastgele arıza senaryosuyla ${fmt(R.windowSec / 3600)} saat benzetildi. Önce kötü senaryo kapsaması, sonra yedek, sonra enerji karşılaştırıldı. Boşluk sütunu senaryoların %90'ında aşılmayan en uzun boşluktur.` }),
+      h('h2', { text: 'Filo' }), ...dlist,
+      sd ? [h('h2', { text: `Batarya: ${sd.name}` }), chartBox('cBat', 'Kalan batarya (%). Kesikli çizgi rezerv sınırı; dik çıkışlar batarya değişimidir.')] : null,
+      securityNotes()].flat(2).filter(Boolean));
+    drawCountChart('cOcc', r.series.occ, R.rep.seriesStep, R.k, 'devriyede');
+    drawCountChart('cReady', r.series.ready, R.rep.seriesStep, R.reserve, 'hazır yedek');
+    if (sd) drawTimeChart('cBat', sd, (s) => s.bat, '%', 100 - 100 * sd.usable / (sd.full || 1), [0, 100]);
+  }
+  function securityNotes() {
+    return h('details', { class: 'method' }, h('summary', { text: 'Güvenlik algoritması' }), h('ul', null,
+      h('li', { text: 'Devriye rotası: alan, kamera izi genişliğinde iç içe halkalarla kaplanır ve tek kapalı rota oluşturulur. Hedef sayıda devriye yuvası bu rotada eşit aralıkla döner; her yuvada her an bir drone bulunması hedeflenir.' }),
+      h('li', { text: 'İstasyon sayısı: en az (uygun drone ÷ istasyon başına şarj yuvası); 4 ve üzeri dronede tek nokta arızasına karşı en az 2; en uzak rota noktası en kısa menzilin dörtte birinden uzaksa artırılır.' }),
+      h('li', { text: 'İstasyon konumu: rota üzerindeki noktalara ortalama mesafeyi en aza indiren p-medyan çözümü (açgözlü başlangıç ve takas iyileştirmesi). Tamir istasyonu: arıza noktalarına gidiş ve istasyonlara teslim yolunu en aza indiren konum.' }),
+      h('li', { text: 'Görev devri: görevdeki drone\'un rezerv sınırına kalan süresi, en yakın hazır drone\'un varış süresi artı devir payına inince yedek kalkar; yedek yuvaya varınca görevdeki drone döner. Boş yuvaya en yakın hazır drone hemen kalkar; güvenlik için gerekirse son yedek de kullanılır.' }),
+      h('li', { text: 'Batarya: istasyondaki şarj yuvaları sırayla şarj eder; şarjlı yedek batarya yoksa drone şarjı bekler.' }),
+      h('li', { text: 'Arıza: uçuştaki her drone için arızalar ortalama MTBF ile rastgele oluşur. Kritik arızada acil iniş, kurtarma aracıyla tamire taşıma; hafif arızada drone uçarak tamire gider. Tamirden sonra istasyonuna teslim edilip yedeğe katılır.' }),
+      h('li', { text: 'Seçim: her istasyon sayısı birçok rastgele senaryoyla benzetilir; güvenlik önce gelir (kötü senaryo kapsaması), sonra hazır yedek, en son enerji ve istasyon sayısı.' })));
+  }
+  function drawCountChart(id, ser, step, target, label) {
+    const cv = $('#' + id); if (!cv || !ser || !ser.length) return;
+    const { ctx, w, h: hh } = setupCanvas(cv);
+    const tmax = (ser.length - 1) * step || 1, pad = { l: 34, r: 12, t: 10, b: 24 };
+    const ymax = Math.ceil(Math.max(1, target + 1, ...ser) / 4) * 4; // eksende tam sayı drone
+    const X = (t) => pad.l + (w - pad.l - pad.r) * t / tmax, Y = (v) => pad.t + (hh - pad.t - pad.b) * (1 - v / ymax);
+    axes(ctx, w, hh, pad, [0, tmax], [0, ymax], (t) => clock(t), (v) => fmt(v, Number.isInteger(v) ? 0 : 1));
+    ctx.strokeStyle = css('--crit'); ctx.setLineDash([4, 4]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, Y(target)); ctx.lineTo(w - pad.r, Y(target)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = css('--accent-soft'); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+    ser.forEach((v, k) => { ctx.lineTo(X(k * step), Y(v)); ctx.lineTo(X(Math.min(tmax, (k + 1) * step)), Y(v)); });
+    ctx.lineTo(X(tmax), Y(0)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (sim.t > 0) { ctx.strokeStyle = css('--text'); ctx.beginPath(); ctx.moveTo(X(Math.min(sim.t, tmax)), pad.t); ctx.lineTo(X(Math.min(sim.t, tmax)), hh - pad.b); ctx.stroke(); }
+    hover(cv, pad, (mx) => {
+      const t = (mx - pad.l) / (w - pad.l - pad.r) * tmax; if (t < 0 || t > tmax) return null;
+      const v = ser[Math.min(ser.length - 1, Math.floor(t / step))];
+      return { x: X(t), y: Y(v), tip: [h('b', { text: 'T+' + clock(t) }), h('br'), `${v} drone ${label}`] };
+    }, () => drawCountChart(id, ser, step, target, label));
   }
   function powerCaption(d) {
     const sp = d.speeds;
@@ -2443,7 +3056,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       const bodyEl = mk.getElement()?.querySelector('.body i');
       if (bodyEl) bodyEl.style.transform = `rotate(${s.hdg}deg)`;
       if (ix !== sim.idx[i] || sim.running) {
-        const from = Math.max(0, ix - TRAIL), pts = [];
+        const from = Math.max(0, ix - (R.mode === 'security' ? 8 : TRAIL)), pts = [];
         for (let k = from; k <= ix; k++) pts.push(tl[k].ll);
         pts.push(ll);
         sim.trails[i].setLatLngs(show ? pts : []);
@@ -2461,6 +3074,11 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     for (let k = sim.fired[i]; k <= ix && k < tl.length; k++) {
       const s = tl[k], at = { simTime: s.t };
       if (n > 6) break; // tek karede kayıt taşmasın
+      if (R && R.mode === 'security') {
+        // güvenlik benzetimi olayları kendi mesajını taşır; rutin şarj ve hazır bekleme kayda yazılmaz
+        if (s.msg) { log(i, s.msg, s.k === 'fail' ? 'crit' : s.k === 'ready' || s.k === 'deliver' ? 'ok' : /Boş kalan|zorunda/.test(s.msg) ? 'warn' : null, at); n++; }
+        continue;
+      }
       if (k === 1 && s.k === 'climb') { log(i, `Kalkış yapıldı, ${d.alt} m görev irtifasına tırmanıyor.`, null, at); n++; }
       else if (s.k === 'rth') { log(i, `Batarya %${fmt(s.bat)}: rezervi korumak için kalkış noktasına dönüyor.`, 'warn', at); n++; }
       else if (s.k === 'swap') { log(i, `Batarya değiştirildi, sorti ${s.sortie} başlıyor.`, 'ok', at); n++; }
@@ -2564,6 +3182,9 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     renderFields($('#opsFields'), S.mission, OPS_FIELDS, () => changed('mission'));
     renderFields($('#envFields'), S.env, ENV_FIELDS, () => changed('env'));
     renderFields($('#costFields'), S.costs, COST_FIELDS, () => changed('cost'));
+    renderFields($('#secFields'), S.security, SEC_FIELDS, () => changed('mission'));
+    renderFields($('#secFailFields'), S.security, SEC_FAIL_FIELDS, () => changed('mission'));
+    renderFields($('#secSimFields'), S.security, SEC_SIM_FIELDS, () => changed('mission'));
     setBase(S.baseLayer);
     drawParcels(); drawMarks(); renderArazi(); renderFleet(); renderMission();
     recompute();
