@@ -34,10 +34,16 @@ npm test       # hesap motoru testleri
 - **Birden fazla arsa ve kalkış noktası:** Haritada çizilir, sürüklenerek düzeltilir.
 - **Otomatik drone seçimi:** Her drone, arsa ve kalkış noktası çifti için rüzgâr sınırı, menzil, iş hızı, hektar başına enerji, yedek batarya ve şarj süresi hesaplanır. Öncelik ayarına göre en uygun dronelar seçilir, gerisi nedeniyle birlikte yedekte gösterilir. İstenirse atama elle yapılır.
 - **İrtifa belirleme:** Hedef görüntü çözünürlüğünden (cm/piksel) irtifa hesaplanır; en yüksek engel, güvenlik payı, arazi kot farkı ve yasal üst sınır (varsayılan 120 m) arasına çekilir. Aynı arsayı veya kalkışı paylaşan dronelar ayrı irtifa katmanlarında uçar.
-- **Üç görev türü:** Alan tarama (bindirmeli şeritler), çevre devriyesi, ilgi noktası kontrolü (en kısa ziyaret sırası).
+- **Üç görev türü daha:** Alan tarama (bindirmeli şeritler), çevre devriyesi, ilgi noktası kontrolü (en kısa ziyaret sırası).
+- **Çevre devriyesinde en geniş görüş:**
+  - Görevdeki dronelar çevreye eşit aralıkla yayılır. Her drone önündeki aralığa göre hızını ayarlar: aralık büyükse hızlanır, küçükse yavaşlar. Bir drone batarya değiştirmeye gidince kalanlar aralığı kendiliğinden yeniden eşitler.
+  - İlk kalkışta dronelar doğrudan eşit aralıklı noktalara gider. Sonradan katılan drone en büyük boşluğun ortasına girer.
+  - İlk bataryalar kademeli kullanılır; böylece sonraki batarya değişimleri çakışmaz.
+  - İrtifa, kabul edilen en kaba görüntü çözünürlüğüne (varsayılan 5 cm/px) ve yasal sınıra kadar yükseltilir; her drone daha geniş alan görür.
+  - Sonuç panelinde anlık çevre görüşü, en uzun bekleme süresi ve aralık düzgünlüğü, dağıtmadan uçan filoyla karşılaştırmalı gösterilir.
 - **Sürekli gözlem:** Gözlem süresi boyunca döngüler tekrarlanır; batarya değişimi, yedek batarya ve şarj sırası planlanır. Her arsa için tekrar aralığı, görevdeki drone sayısı ve boş kalınan süre gösterilir.
 - **Enerji modeli:** Çok rotorlu ve sabit kanat güç modelleri, rüzgârın irtifayla artışı, hava yoğunluğu, sıcaklığın bataryaya etkisi, dönüş kayıpları, benzinli dronelar için yakıt tüketimi.
-- **Simülasyon:** Haritada canlı uçuş, 6 gösterge (hız, yönelim, irtifa, batarya, baş açısı, dikey hız) ve zaman damgalı kayıt tablosu.
+- **Simülasyon:** Haritada canlı uçuş, her drone'un kamera görüş alanı, 6 gösterge (hız, yönelim, irtifa, batarya, baş açısı, dikey hız) ve zaman damgalı kayıt tablosu. Haritadaki veya simülasyon çubuğundaki **Büyüt** düğmesi yan panelleri gizleyip haritayı tam ekrana açar (Esc ile çıkılır).
 - **Dışa aktarma:** Her drone için QGroundControl'ün açabileceği `.plan` görev dosyası; tüm ayarları JSON olarak indirme ve geri yükleme.
 
 ## Güvenlik algoritması

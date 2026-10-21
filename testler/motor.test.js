@@ -227,8 +227,47 @@ test('Sürekli çevre devriyesinde görevdeki drone ortalaması ve ziyaret aral�
   r.parcels.forEach(p => { assert.ok(p.onStationMean > 0, p.name); assert.ok(p.revisitAvgSec > 0, p.name); assert.ok(p.series.length > 10); });
 });
 
+/* ---------- Çevre devriyesinde dağılım ve görüş ---------- */
+const perimIn = (drs, over = {}) => missionIn({ mission: Object.assign({ mode: 'perimeter', continuous: true, opsHours: 3, selection: 'manual' }, over),
+  root: { drones: drs.map((d, i) => Object.assign({ name: 'P' + i }, d, { manualParcel: 0, manualHome: 0 })), parcels: [{ name: 'Tarla', pts: parcel }], homes: [{ name: 'K1', ll: [41.1084, 28.1598] }] } });
+
+test('Çevre devriyesi: aynı kalkıştan çıkan dronelar çevreye eşit aralıkla yayılır', () => {
+  const r = Engine.planMission(perimIn([quad, quad, quad]));
+  const p = r.parcels[0];
+  assert.ok(p.spacingCv < 0.15, 'aralık değişkenliği ' + p.spacingCv);
+  assert.ok(p.viewMean > 0 && p.viewMean <= 1, 'görüş ' + p.viewMean);
+});
+
+test('Çevre devriyesi: farklı hızlı filoda dağıtım aralıkları eşitler, görüşü düşürmez, beklemeyi uzatmaz', () => {
+  const r = Engine.planMission(perimIn([quad, Engine.PRESETS.find(x => x.id === 'devriye').spec, Engine.PRESETS[1].spec]));
+  const p = r.parcels[0];
+  assert.ok(p.spacingCv < p.spacingCvBase / 3, `aralık değişkenliği ${p.spacingCv} / dağıtmasız ${p.spacingCvBase}`);
+  assert.ok(p.viewMean >= p.viewBase - 0.01, `dağıtımlı ${p.viewMean} dağıtmasız ${p.viewBase}`);
+  assert.ok(p.revisitMaxSec <= p.revisitMaxBase + 1, `en uzun bekleme ${p.revisitMaxSec} / ${p.revisitMaxBase}`);
+});
+
+test('Çevre devriyesi: kümelenen filoda (6 drone tek tur) dağıtım anlık görüşü belirgin artırır', () => {
+  const r = Engine.planMission(perimIn(Array(6).fill(quad), { continuous: false }));
+  const p = r.parcels[0];
+  assert.ok(p.viewMean > p.viewBase * 1.5, `dağıtımlı ${p.viewMean} dağıtmasız ${p.viewBase}`);
+  assert.ok(p.revisitMaxSec < p.revisitMaxBase * 0.6, `en uzun bekleme ${p.revisitMaxSec} / ${p.revisitMaxBase}`);
+});
+
+test('Çevre devriyesi: görüş için irtifa, kabul edilen en kaba GSD ve yasal sınıra kadar yükselir', () => {
+  const lo = Engine.planMission(perimIn([quad], { viewGsdCm: 2.5 })), hi = Engine.planMission(perimIn([quad], { viewGsdCm: 5 }));
+  assert.ok(hi.drones[0].alt > lo.drones[0].alt && hi.drones[0].alt <= 120, `${lo.drones[0].alt} -> ${hi.drones[0].alt}`);
+  assert.ok(hi.parcels[0].viewMean > lo.parcels[0].viewMean, 'görüş artmadı');
+});
+
+test('Çevre devriyesi: bir drone batarya değiştirirken kalanlar yeniden eşit yayılır', () => {
+  const r = Engine.planMission(perimIn([quad, quad, quad], { opsHours: 4 }));
+  const p = r.parcels[0];
+  // görevde 2 drone kaldığı anlarda da aralık değişkenliği düşük kalmalı
+  assert.ok(p.spacingCvReduced < 0.2, 'eksik filoda aralık değişkenliği ' + p.spacingCvReduced);
+});
+
 /* ---------- 7/24 güvenlik devriyesi ---------- */
-const ATAKOY = [[40.97689, 28.84113], [40.9774, 28.84799], [40.97575, 28.85184], [40.97367, 28.85074], [40.97201, 28.84909],
+const ATAKOY =[[40.97689, 28.84113], [40.9774, 28.84799], [40.97575, 28.85184], [40.97367, 28.85074], [40.97201, 28.84909],
   [40.96911, 28.84689], [40.96673, 28.8458], [40.96673, 28.83975], [40.97098, 28.84058]];
 const devriye = Engine.PRESETS.find(p => p.id === 'devriye').spec;
 const secIn = (sec = {}, over = {}) => Object.assign({

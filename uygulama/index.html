@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-Vs+uKbar3hcvj5NexQJu+4hh7FdeEgRTvDBquMJLnMw=' 'sha256-TkYmPhd+w0Gl8550REHXu/XT1H1D2HadDwWibigb9Gg='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-5qD42BNNzjsQuHfuqcE91JVbHBpKtuIwKUaOYHLBpQ8=' 'sha256-J6KHpCacRywYV9UGxmZhr8TmfApiUzstKP5dCSo20Is='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Nöbetçi Rota Planlayıcı</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -355,6 +355,12 @@ details.method li { margin: 5px 0; }
 .busy { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- Büyük simülasyon görünümü ---------- */
+.app.expanded { grid-template-columns: minmax(0, 1fr); grid-template-rows: 60px minmax(0, 1fr) 236px; grid-template-areas: "hdr" "map" "bottom"; }
+.app.expanded .left, .app.expanded .right { display: none; }
+.app:fullscreen { background: var(--bg); height: 100vh; }
+.app.expanded .bottom { grid-template-columns: auto minmax(0, 1fr); }
+
 /* ---------- Duyarlı ---------- */
 @media (max-width: 1360px) {
   .app { grid-template-columns: 320px minmax(0, 1fr) 340px; }
@@ -382,6 +388,13 @@ details.method li { margin: 5px 0; }
   .legend-map { display: none; }
   .hint { max-width: calc(100% - 20px); flex-wrap: wrap; }
   .fields { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1100px) {
+  .app.expanded { height: 100dvh; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "hdr" "map" "bottom"; }
+  .app.expanded .log { max-height: 120px; }
+}
+@media (max-width: 760px) {
+  .app.expanded .gauges { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -535,6 +548,7 @@ details.method li { margin: 5px 0; }
       <button class="btn" type="button" data-tool="poi" aria-pressed="false"><i class="ph ph-map-pin-plus" aria-hidden="true"></i><span>İlgi noktası</span></button>
       <button class="btn" type="button" data-tool="obstacle" aria-pressed="false"><i class="ph ph-tree-evergreen" aria-hidden="true"></i><span>Engel ekle</span></button>
       <hr>
+      <button class="btn" type="button" data-expand aria-pressed="false" aria-label="Haritayı ve simülasyonu büyüt"><i class="ph ph-arrows-out" aria-hidden="true"></i><span>Büyüt</span></button>
       <button class="btn" type="button" id="btnFit"><i class="ph ph-corners-out" aria-hidden="true"></i><span>Tümüne odaklan</span></button>
     </div>
     <div class="hint" id="hint" hidden>
@@ -558,6 +572,7 @@ details.method li { margin: 5px 0; }
     <div class="panel simlog">
       <div class="simbar">
         <button class="btn primary" type="button" id="btnSim"><i class="ph-fill ph-play" aria-hidden="true"></i><span>Simüle et</span></button>
+        <button class="btn icon" type="button" data-expand aria-pressed="false" aria-label="Haritayı ve simülasyonu büyüt"><i class="ph ph-arrows-out" aria-hidden="true"></i></button>
         <button class="btn icon" type="button" id="btnReset" aria-label="Simülasyonu başa sar"><i class="ph ph-skip-back" aria-hidden="true"></i></button>
         <label class="sr-only" for="simSpeed">Simülasyon hızı</label>
         <select id="simSpeed">
@@ -799,6 +814,8 @@ const Engine = (() => {
     }
     return { vEndurance, vRange, pMin, whPerKm: eMin * 1000 / 3600, vMin: vmin };
   }
+  // Çevre devriyesinde görüşü genişletmek için irtifa, kabul edilen en kaba GSD'ye kadar yükseltilir.
+  const missionGsd = (m) => (m.mode === 'perimeter' ? Math.max(m.gsdCm, m.viewGsdCm || m.gsdCm) : m.gsdCm);
   const altitudeForGsd = (gsdCm, hfovDeg, imgW) => (gsdCm / 100) * imgW / (2 * Math.tan(hfovDeg / 2 * D));
 
   /* Hava hızı va ile u yönünde ilerlerken yer hızı. w: rüzgârın estiği yönde vektör. */
@@ -1023,7 +1040,7 @@ const Engine = (() => {
     return P.areaM2;
   }
   function evalPair(d, home, P, m, env, minAlt) {
-    const alt = clamp(Math.round(altitudeForGsd(m.gsdCm, d.hfov, d.imgW)), Math.ceil(minAlt), m.maxAlt);
+    const alt = clamp(Math.round(altitudeForGsd(missionGsd(m), d.hfov, d.imgW)), Math.ceil(minAlt), m.maxAlt);
     const c = makeCtx(d, alt, env, m, home, false);
     if (c.wAlt > d.maxWind) return { ok: false, why: `rüzgâr ${c.wAlt.toFixed(1)} m/s, sınırı ${d.maxWind} m/s` };
     const entry = nearestOnPoly(home, P.poly);
@@ -1185,6 +1202,189 @@ const Engine = (() => {
     }) };
   }
 
+  /* ---------- Çevre devriyesi: dağılım kontrollü benzetim ----------
+     Görevdeki dronelar aynı yönde döner; her drone önündeki aralığa göre hızını ayarlar (aralık büyükse hızlanır,
+     küçükse yavaşlar), böylece görevdeki drone sayısı ne olursa olsun çevreye eşit aralıkla yayılırlar.
+     Yeni kalkan drone en büyük boşluğun ortasına katılır. spread=false eski davranışı (kendi hızı, en yakın noktadan
+     katılım, kademeli kalkış) karşılaştırma için benzetir. */
+  function ringOf(poly, inset) {
+    const ring = offsetInward(poly, inset);
+    const route = ring.concat([ring[0]]);
+    const cum = [0];
+    for (let i = 1; i < route.length; i++) cum.push(cum[i - 1] + dist(route[i - 1], route[i]));
+    return { route, cum, L: cum[cum.length - 1] };
+  }
+  function nearestParam(R, p) {
+    let best = 0, bd = Infinity;
+    for (let i = 1; i < R.route.length; i++) {
+      const a = R.route[i - 1], b = R.route[i], ab = [b[0] - a[0], b[1] - a[1]];
+      const L2 = ab[0] * ab[0] + ab[1] * ab[1] || 1;
+      const t = clamp(((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / L2, 0, 1);
+      const d = dist(p, [a[0] + ab[0] * t, a[1] + ab[1] * t]);
+      if (d < bd) { bd = d; best = R.cum[i - 1] + t * (R.cum[i] - R.cum[i - 1]); }
+    }
+    return best;
+  }
+  function perimeterPatrol(R, list, m, horizon, cont, spread, pi) {
+    const dt = 10, nSteps = Math.ceil(horizon / dt), L = R.L, swapSec = m.swapMin * 60;
+    const vRef = Math.max(2, Math.min(...list.map((c) => Math.min(c.va, c.vgCap, c.d.vMax))));
+    const n = list.length;
+    const X = list.map((c, q) => {
+      const d = c.d;
+      let inv = 0;
+      for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4, vg = groundSpeed([Math.sin(ang), Math.cos(ang)], c.wind, c.va); inv += 1 / (vg > 0.5 ? vg : 0.5); }
+      const tClimb = c.alt / d.climb, tDesc = c.alt / d.descent;
+      const vLow = d.type === 'fixed' ? d.vStall * 1.1 : 1;
+      return { q, c, d, home: c.home, vgT: 8 / inv, pT: power(d, c.va, c.rho), tClimb, tDesc,
+        eClimb: (c.pHover + d.mass * G * d.climb / (d.eta / 100)) * tClimb / 3600, eDesc: 0.85 * c.pHover * tDesc / 3600,
+        usable: c.usable, full: c.full, eMargin: 0.03 * c.usable, nb: d.source === 'fuel' ? 1 : Math.max(1, Math.round(d.batteries)), chargeSec: d.chargeMin * 60, fuel: d.source === 'fuel',
+        vMin: Math.max(vLow, 0.6 * vRef), vMax: Math.max(Math.max(vLow, 0.6 * vRef), Math.min(d.vMax, 1.35 * vRef)), vOwn: Math.min(c.va, c.vgCap, d.vMax),
+        r: Math.max(c.fpW, c.fpL) / 2 * 0.9,
+        st: 'ready', s: 0, v: 0, pos: c.home.slice(), z: 0, used: 0, budget: c.usable, readyAt: 0, launchAt: 0, from: null, to: null, t0: 0, t1: 0, rate: 0, target: 0,
+        spare: new Array(Math.max(0, (d.source === 'fuel' ? 1 : Math.round(d.batteries)) - 1)).fill(0), traveled: 0,
+        sorties: 0, energy: 0, waitSec: 0, capSec: 0, laps: 0, launched: false, tl: [] };
+    });
+    // İlk sortide kademeli dönüş (yalnız sürekli ve dağıtımlı): herkes hemen kalkar, ama ilk bataryaları farklı oranda
+    // kullanılır; böylece sonraki batarya değişimleri çakışmaz ve havada her an drone kalır.
+    if (cont && spread && n > 1) X.forEach((x, q) => { x.budget = x.usable * (1 - 0.75 * q / n); });
+    // Dağıtmasız karşılaştırma: eski kademeli kalkış
+    if (!spread && cont && n > 1) X.forEach((x, q) => { x.launchAt = Math.min(horizon / 2, x.usable / x.pT * 3600 * q / n); });
+    let t = 0, waveS0 = 0;
+    const push = (x, kind, extra, at) => {
+      const tt = at === undefined ? t : at;
+      while (x.tl.length && x.tl[x.tl.length - 1].t > tt) x.tl.pop();
+      x.tl.push(Object.assign({ t: tt, x: x.pos[0], y: x.pos[1], z: x.z, bat: Math.max(0, 100 * (1 - x.used / x.full)), sortie: Math.max(1, x.sorties), k: kind, vg: 0, va: 0, vs: 0, hdg: 0 }, extra));
+    };
+    const hdgOf = (a, b) => (Math.atan2(b[0] - a[0], b[1] - a[1]) / D + 360) % 360;
+    const mod = (s) => ((s % L) + L) % L;
+    const onSt = () => X.filter((x) => x.st === 'on');
+    const largestGapMid = (pts) => {
+      if (!pts.length) return null;
+      const s = pts.map(mod).sort((a, b) => a - b);
+      let best = 0, bg = -1;
+      s.forEach((a, k) => { const b = k + 1 < s.length ? s[k + 1] : s[0] + L; if (b - a > bg) { bg = b - a; best = a + (b - a) / 2; } });
+      return mod(best);
+    };
+    const launch = (x) => {
+      const eta0 = x.tClimb + 60;
+      let target;
+      if (spread) {
+        const outs = X.filter((o) => o.st === 'out');
+        if (!onSt().length) {
+          // ilk dalga: dronelar doğrudan eşit aralıklı noktalara gönderilir
+          if (!outs.length) waveS0 = nearestParam(R, x.home);
+          target = mod(waveS0 + outs.length * L / n);
+        } else {
+          // sonradan katılan: en büyük boşluğun ortasına
+          target = largestGapMid(onSt().map((o) => o.s + o.v * eta0).concat(outs.map((o) => o.target)));
+        }
+      } else target = nearestParam(R, x.home);
+      const to = routeAt(R, target), L2 = dist(x.home, to), eta = x.tClimb + L2 / x.vgT;
+      x.st = 'out'; x.target = target; x.from = x.home.slice(); x.to = to; x.t0 = t; x.t1 = t + eta; x.rate = (x.eClimb + L2 / x.vgT * x.pT / 3600) / (eta || 1);
+      x.sorties++; x.launched = true;
+      push(x, 'pre', { msg: x.sorties === 1 ? (spread ? 'Kalkış: çevrede kendi aralığına yerleşecek.' : 'Kalkış: çevreye en yakın noktadan katılacak.') : (spread ? 'Batarya değişti; çevredeki en büyük boşluğa katılıyor.' : 'Batarya değişti; çevreye yeniden katılıyor.') });
+      x.z = x.c.alt; push(x, 'climb', { vs: x.d.climb }, t + x.tClimb);
+      const keep = x.pos; x.pos = to; push(x, 'leg', { vg: x.vgT, va: x.c.va, hdg: hdgOf(x.home, to) }, x.t1); x.pos = keep; x.z = 0;
+    };
+    const startBack = (x) => {
+      x.st = 'back'; x.from = x.pos.slice(); x.to = x.home; x.t0 = t;
+      const th = dist(x.from, x.to) / x.vgT; x.t1 = t + th + x.tDesc; x.rate = (th * x.pT / 3600 + x.eDesc) / ((x.t1 - t) || 1);
+      push(x, 'rth', { vg: x.vgT, va: x.c.va, hdg: hdgOf(x.from, x.to) });
+      const keep = x.pos; x.pos = x.to; push(x, 'leg', {}, t + th); x.z = 0; push(x, 'land', { vs: -x.d.descent }, x.t1); x.pos = keep; x.z = x.c.alt;
+    };
+    const land = (x) => {
+      x.pos = x.home.slice(); x.z = 0;
+      const usedFrac = x.used / x.full;
+      if (x.fuel) x.readyAt = t + swapSec;
+      else {
+        const end = t + x.chargeSec * Math.min(1, usedFrac + 0.05);
+        if (x.spare.length) { x.spare.sort((a, b) => a - b); x.readyAt = Math.max(t + swapSec, x.spare.shift()); x.spare.push(end); }
+        else x.readyAt = Math.max(t + swapSec, end);
+      }
+      x.waitSec += Math.max(0, x.readyAt - t - swapSec);
+      x.st = 'charge'; x.used = 0; x.budget = x.usable;
+      push(x, 'swap', { sortie: x.sorties + 1 }, x.readyAt);
+    };
+    // ölçümler
+    let lastView = 0, warm = null, viewAcc = 0, viewMin = 1, nAcc = 0, onAcc = 0, zeroSec = 0, maxGapMax = 0;
+    const cvAll = [], cvReduced = [], gapRevisit = [];
+    const series = [], viewSeries = [];
+    for (let s = 0; s <= nSteps; s++) {
+      t = s * dt;
+      for (const x of X) {
+        const flying = x.st === 'out' || x.st === 'on' || x.st === 'back';
+        if (flying && s > 0) { const de = (x.st === 'on' ? power(x.d, x.v, x.c.rho) * 1.06 / 3600 : x.rate) * dt; x.used += de; x.energy += de; }
+        const moveLin = () => { const f = clamp((t - x.t0) / ((x.t1 - x.t0) || 1), 0, 1); x.pos = [x.from[0] + (x.to[0] - x.from[0]) * f, x.from[1] + (x.to[1] - x.from[1]) * f]; };
+        if (x.st === 'ready') {
+          if (t >= x.launchAt && (cont || !x.launched)) launch(x);
+        } else if (x.st === 'charge') { if (t >= x.readyAt) x.st = 'ready'; }
+        else if (x.st === 'out') {
+          moveLin();
+          if (t >= x.t1) { x.st = 'on'; x.s = x.target; x.v = spread ? vRef : x.vOwn; x.z = x.c.alt; }
+        } else if (x.st === 'back') { moveLin(); if (t >= x.t1) land(x); }
+      }
+      // dağılım kontrolü: önündeki aralığa göre hız
+      const on = onSt().sort((a, b) => mod(a.s) - mod(b.s));
+      const m2 = on.length;
+      on.forEach((x, k) => {
+        if (!spread) { x.v = x.vOwn; return; }
+        if (m2 < 2) { x.v = clamp(vRef, x.vMin, x.vMax); return; }
+        const ahead = on[(k + 1) % m2], g = mod(ahead.s - x.s) || L, G = L / m2;
+        x.v = clamp(vRef * (1 + 0.8 * (g - G) / G), x.vMin, x.vMax);
+      });
+      for (const x of on) {
+        if (s > 0) { x.s = mod(x.s + x.v * dt); x.traveled += x.v * dt; x.capSec += dt; }
+        const np = routeAt(R, x.s);
+        push(x, 'cap', { cap: true, pi, vg: x.v, va: x.v, hdg: hdgOf(x.pos, np) });
+        x.pos = np;
+        const eRet = dist(x.pos, x.home) / x.vgT * x.pT / 3600 + x.eDesc;
+        if (x.budget - x.used <= eRet + x.eMargin || (!cont && x.traveled >= L)) { x.laps += x.traveled / L; x.traveled = 0; startBack(x); }
+      }
+      // ölçümler: anlık görüş (kamera izlerinin çevre üstündeki birleşimi), aralık düzgünlüğü, boş kalma
+      const on2 = onSt().sort((a, b) => mod(a.s) - mod(b.s));
+      if (warm === null && (on2.length === n || t >= 1200)) warm = t;
+      if (warm !== null && t > warm && (cont || X.some((x) => x.st !== 'charge' && x.st !== 'ready' || !x.launched))) {
+        let covered = 0;
+        if (on2.length) {
+          const iv = on2.map((x) => [mod(x.s) - x.r, mod(x.s) + x.r]).sort((a, b) => a[0] - b[0]);
+          // çember üstünde birleşim: başa taşanları sona kaydır
+          const flat = [];
+          iv.forEach(([a, b]) => { if (a < 0) { flat.push([a + L, L]); flat.push([0, b]); } else if (b > L) { flat.push([a, L]); flat.push([0, b - L]); } else flat.push([a, b]); });
+          flat.sort((a, b) => a[0] - b[0]);
+          let cs = -1, ce = -1;
+          flat.forEach(([a, b]) => { if (a > ce) { if (ce > cs) covered += ce - cs; cs = a; ce = b; } else ce = Math.max(ce, b); });
+          if (ce > cs) covered += ce - cs;
+        }
+        const view = Math.min(1, covered / L); lastView = view;
+        viewAcc += view; nAcc++; viewMin = Math.min(viewMin, view); onAcc += on2.length;
+        if (!on2.length) zeroSec += dt;
+        if (on2.length >= 2) {
+          const gaps = on2.map((x, k) => mod(on2[(k + 1) % on2.length].s - x.s) || L);
+          const mean = L / on2.length, sd = Math.sqrt(gaps.reduce((a, g) => a + (g - mean) * (g - mean), 0) / gaps.length);
+          const cv = sd / mean;
+          cvAll.push(cv); if (on2.length < n) cvReduced.push(cv);
+          const mg = Math.max(...gaps); maxGapMax = Math.max(maxGapMax, mg);
+          gapRevisit.push(mg / vRef);
+        } else if (on2.length === 1) gapRevisit.push(L / vRef);
+      }
+      if (s % 6 === 0) {
+        series.push(on2.length);
+        viewSeries.push(Math.round(100 * lastView)); // dakikalık anlık görüş yüzdesi
+      }
+    }
+    const avg = (a) => (a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0);
+    gapRevisit.sort((a, b) => a - b);
+    const onMean = nAcc ? onAcc / nAcc : 0;
+    X.forEach((x) => { x.laps += x.traveled / L; });
+    return {
+      vRef, viewMean: nAcc ? viewAcc / nAcc : 0, viewMin: nAcc ? viewMin : 0, onMean, zeroSec,
+      spacingCv: avg(cvAll), spacingCvReduced: cvReduced.length ? avg(cvReduced) : 0,
+      revisitAvgSec: onMean > 0 ? L / (onMean * vRef) : 0, revisitMaxSec: gapRevisit.length ? gapRevisit[Math.floor(0.95 * (gapRevisit.length - 1))] : 0,
+      series, viewSeries, setupSec: warm || 0,
+      drones: X.map((x) => ({ timeline: x.tl, energyWh: x.energy, sorties: x.sorties, waitSec: x.waitSec, capSec: x.capSec, laps: x.laps, endSec: x.tl.length ? x.tl[x.tl.length - 1].t : 0 })),
+    };
+  }
+
   /* ---------- Ana planlayıcı: çoklu arsa, çoklu kalkış, seçim, sürekli gözlem ---------- */
   function planMission(input) {
     if (input.mission && input.mission.mode === 'security') return planSecurity(input);
@@ -1236,7 +1436,7 @@ const Engine = (() => {
     const used = drones.map((_, i) => !!A[i]);
 
     // 2) İrtifa: aynı arsayı veya aynı kalkışı paylaşan dronelar (yolları kesişebilir) aynı grupta katmanlanır.
-    const desired = drones.map((d) => altitudeForGsd(m.gsdCm, d.hfov, d.imgW));
+    const desired = drones.map((d) => altitudeForGsd(missionGsd(m), d.hfov, d.imgW));
     const usedIdx = drones.map((_, i) => i).filter((i) => used[i]);
     const alts = drones.map((_, i) => clamp(Math.round(desired[i]), Math.ceil(minAlt), m.maxAlt));
     const root = drones.map((_, i) => i);
@@ -1258,7 +1458,7 @@ const Engine = (() => {
       const d = drones[i], c = ctxs[i];
       if (c.wAlt > d.maxWind) warn('crit', `${d.name}: ${c.alt} m irtifada rüzgâr ${c.wAlt.toFixed(1)} m/s, drone sınırı ${d.maxWind} m/s. Uçuşu erteleyin.`);
       else if (c.wAlt > 0.8 * d.maxWind) warn('warn', `${d.name}: rüzgâr drone sınırının %80'ini aşıyor (${c.wAlt.toFixed(1)} m/s). Batarya rezervini artırın.`);
-      if (c.gsd * 100 > m.gsdCm * 1.05) warn('warn', `${d.name}: güvenlik ve katman kuralları irtifayı ${c.alt} m'ye çıkardı; gerçekleşen yer çözünürlüğü ${(c.gsd * 100).toFixed(1)} cm/px.`);
+      if (c.gsd * 100 > missionGsd(m) * 1.05) warn('warn', `${d.name}: güvenlik ve katman kuralları irtifayı ${c.alt} m'ye çıkardı; gerçekleşen yer çözünürlüğü ${(c.gsd * 100).toFixed(1)} cm/px.`);
       if (d.type === 'fixed' && c.vgCap < d.vStall * 1.1 && m.mode === 'coverage') warn('warn', `${d.name}: kamera tetik aralığı tutunma hızında bile bindirmeyi karşılamıyor. Tetik aralığını kısaltın veya bindirmeyi azaltın.`);
       if (d.type === 'fixed' && m.mode === 'poi') warn('warn', `${d.name}: sabit kanat ilgi noktasında VTOL askı moduna geçer; askı enerjisi yüksektir.`);
     });
@@ -1286,6 +1486,22 @@ const Engine = (() => {
     };
     const window = m.opsHours * 3600;
     const cont = m.continuous ? { window, repeatSec: (m.mode === 'perimeter' ? 0 : (m.repeatMin || 0) * 60) } : null;
+
+    // Çevre devriyesi: her arsada dağılım kontrollü benzetim (ve karşılaştırma için dağıtmasız benzetim)
+    const patrol = {};
+    if (m.mode === 'perimeter') {
+      parcels.forEach((P, pi) => {
+        const ids = usedIdx.filter((i) => A[i].parcels[0] === pi);
+        if (!ids.length) return;
+        const cs = ids.map((i) => ctxs[i]);
+        const Rg = ringOf(P.poly, Math.min(Math.min(...cs.map((c) => c.fpW)) / 2, 0.25 * Math.sqrt(P.areaM2)));
+        const vRef = Math.max(2, Math.min(...cs.map((c) => Math.min(c.va, c.vgCap, c.d.vMax))));
+        const setup = Math.max(...cs.map((c) => c.alt / c.d.climb + dist(c.home, P.cen) / Math.max(3, c.va))) + 120;
+        const hz = cont ? window : setup + Rg.L / vRef + 120;
+        patrol[pi] = { R: Rg, ids, a: perimeterPatrol(Rg, cs, m, hz, !!cont, true, pi), b: perimeterPatrol(Rg, cs, m, hz, !!cont, false, pi) };
+        ids.forEach((i, q) => { patrol['d' + i] = { pi, q }; if (A[i].parcels.length > 1) warn('warn', `${drones[i].name}: birden fazla arsaya atandı; çevre devriyesinde yalnız ${P.name} çevresini korur.`); });
+      });
+    }
 
     const out = drones.map((d, i) => {
       const c = ctxs[i];
@@ -1324,17 +1540,19 @@ const Engine = (() => {
         o.laps = Math.max(0, Math.floor((c.usable - Math.max(0, transE)) / Math.max(o.lapE, 1e-6)));
         o.sortieT = o.laps * o.lapT + Math.max(0, transT); o.sortieE = o.laps * o.lapE + Math.max(0, transE);
       }
-      let run = one;
-      if (cont) {
-        // Devriyede aynı arsadaki dronelar batarya süresinin kesirleriyle kademeli kalkar; değişimleri çakışmaz.
-        let startDelay = 0;
-        if (m.mode === 'perimeter') {
-          const mates = usedIdx.filter((j) => A[j].parcels[0] === A[i].parcels[0]), k = mates.indexOf(i);
-          const sortieSec = Math.min(...mates.map((j) => ctxs[j].usable / power(drones[j], ctxs[j].va, ctxs[j].rho) * 3600));
-          startDelay = k > 0 ? Math.min(window / 2, sortieSec * k / mates.length) : 0;
-        }
-        run = flyPath(c, m, body, Object.assign({ startDelay }, cont));
+      if (m.mode === 'perimeter' && patrol['d' + i]) {
+        // Çevre devriyesinin zaman çizelgesi dağılım kontrollü benzetimden gelir
+        const { pi, q } = patrol['d' + i], pr = patrol[pi], rr = pr.a.drones[q];
+        if (one.abort === 'range') warn('crit', `${d.name}: kalkış noktası menzil dışında; tek batarya gidiş, iş ve dönüşe yetmiyor. Arsaya daha yakın bir kalkış noktası ekleyin.`);
+        o.timeline = rr.timeline.map((s) => Object.assign(s, { ll: toLL([s.x, s.y]) }));
+        o.contEnergyWh = rr.energyWh; o.contSorties = rr.sorties; o.waitSec = rr.waitSec; o.capSec = rr.capSec; o.endSec = rr.endSec; o.patrolLaps = rr.laps;
+        o.loops = [pr.R.route.map(toLL)];
+        o.wps = [{ p: c.home, z: 0 }, { p: c.home, z: c.alt }, ...pr.R.route.map((p, k) => ({ p, z: c.alt, cap: k > 0 })), { p: c.home, z: c.alt }, { p: c.home, z: 0 }]
+          .map((w) => ({ ll: toLL(w.p), z: w.z, cap: !!w.cap, laneStart: false, hover: 0 }));
+        return o;
       }
+      let run = one;
+      if (cont) run = flyPath(c, m, body, cont);
       if (run.abort === 'range' || one.abort === 'range') warn('crit', `${d.name}: kalkış noktası menzil dışında; tek batarya gidiş, iş ve dönüşe yetmiyor. Arsaya daha yakın bir kalkış noktası ekleyin.`);
       else if (run.infeasible) warn('crit', `${d.name}: rüzgâr bazı yönlerde ilerlemeye izin vermiyor.`);
       if (run.abort === 'sorties' || run.abort === 'limit') warn('warn', `${d.name}: plan çok uzun (${run.sorties} sorti); gözlem süresinin sonu kesildi. Drone ekleyin veya GSD hedefini büyütün.`);
@@ -1365,7 +1583,18 @@ const Engine = (() => {
       po.series = series; po.seriesStep = step;
       const horizon = cont ? Math.min(nSteps, Math.ceil(window / step)) : nSteps;
       po.onStationMean = series.slice(0, horizon).reduce((a, b) => a + b, 0) / horizon;
-      if (m.mode === 'perimeter') {
+      if (m.mode === 'perimeter' && patrol[po.idx]) {
+        const pa = patrol[po.idx].a, pb = patrol[po.idx].b;
+        Object.assign(po, {
+          series: pa.series, seriesStep: 60, viewSeries: pa.viewSeries, onStationMean: pa.onMean,
+          revisitAvgSec: pa.revisitAvgSec, revisitMaxSec: pa.revisitMaxSec, gapSec: pa.zeroSec,
+          viewMean: pa.viewMean, viewMin: pa.viewMin, viewBase: pb.viewMean, revisitMaxBase: pb.revisitMaxSec,
+          spacingCv: pa.spacingCv, spacingCvReduced: pa.spacingCvReduced, spacingCvBase: pb.spacingCv, vPatrol: pa.vRef,
+          ringM: patrol[po.idx].R.L, targetGapM: patrol[po.idx].R.L / Math.max(1, ds.length),
+          cycles: Math.round(ds.reduce((a, o) => a + (o.patrolLaps || 0), 0)),
+        });
+        if (!cont) ds.forEach((o) => { if (o.laps < 1) warn('crit', `${o.name}: bir batarya ile ${po.name} çevresini dolaşamıyor. Daha büyük batarya veya daha düşük irtifa deneyin.`); });
+      } else if (m.mode === 'perimeter') {
         const lapT = ds.length ? ds.reduce((a, o) => a + (o.lapT || 0), 0) / ds.length : 0;
         if (cont) {
           po.revisitAvgSec = po.onStationMean > 0 ? lapT / po.onStationMean : 0;
@@ -1625,7 +1854,7 @@ const Engine = (() => {
             break;
           case 'on': {
             const np = slotPos(d.slot, t);
-            if (d.tl && s % 3 === 0) { const h = hdgOf(d.pos, np); d.pos = np; push(d, 'cap', { cap: true, pi: 0, vg: vSlot, va: vSlot, hdg: h }); }
+            if (d.tl && s % 2 === 0) { const h = hdgOf(d.pos, np); d.pos = np; push(d, 'cap', { cap: true, pi: 0, vg: vSlot, va: vSlot, hdg: h }); }
             d.pos = np;
             if (d.x.usable - d.used <= eRet(d) + d.x.eMargin) {
               const j = d.slot;
@@ -1830,7 +2059,7 @@ const Engine = (() => {
       if (q < 0) return { name: d.name, idx: i, used: false, empty: true, reason: reasons[i] || 'Kullanım dışı olarak işaretli.', timeline: [], parcelIdx: [], homeIdx: -1, spec: d, type: d.type, source: d.source };
       const x = chosen.cfg.dr[q], c = x.ctx, rr = rep.drones[q], st = chosen.cfg.sites[x.station];
       return { name: d.name, idx: i, used: true, empty: false, reason: null, type: d.type, source: d.source, spec: d, homeIdx: x.station, stationIdx: x.station, parcelIdx: [pIdx],
-        alt: c.alt, gsdCm: c.gsd * 100, va: c.va, vgCap: c.vgCap, wAlt: c.wAlt, rho: c.rho, speeds: c.sp, usable: c.usable, full: c.full, photoDist: c.photoDist,
+        alt: c.alt, gsdCm: c.gsd * 100, fpW: c.fpW, va: c.va, vgCap: c.vgCap, wAlt: c.wAlt, rho: c.rho, speeds: c.sp, usable: c.usable, full: c.full, photoDist: c.photoDist,
         timeSec: horizon, energyWh: rr.energyWh, sorties: rr.sorties, failures: rr.failures, flightSec: rr.flightSec, duty: duty[q].duty,
         parts: { climb: 0, cruise: rr.energyWh, turn: 0, hover: 0 }, distM: 0, photos: 0, maxUsePct: 100,
         timeline: rr.timeline.map((s) => Object.assign(s, { ll: ll([s.x, s.y]) })), lanes: [],
@@ -1933,6 +2162,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     { k: 'sideOverlap', l: 'Yan bindirme', u: '%', min: 0, max: 90, step: 1 },
     { k: 'clearance', l: 'Engel üstü pay', u: 'm', min: 2, max: 60, step: 1 },
     { k: 'maxAlt', l: 'Yasal azami irtifa', u: 'm', min: 20, max: 500, step: 5, h: 'Açık kategoride genelde 120 m. İzninize göre değiştirin.' },
+    { k: 'viewGsdCm', l: 'Çevre devriyesinde en kaba GSD', u: 'cm/px', min: 0.5, max: 30, step: 0.1, wide: true, h: 'Çevre devriyesinde irtifa bu çözünürlüğe (ve yasal sınıra) kadar yükseltilir; her drone daha geniş alan görür.' },
   ];
   const OPS_FIELDS = [
     { k: 'layerSep', l: 'Katmanlar arası ayrım', u: 'm', min: 3, max: 40, step: 1 },
@@ -2017,7 +2247,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       drones: d,
       env: { windSpeed: 5, windFrom: 30, alpha: 0.14, tempC: 17, elevMSL: 10, terrainVar: 3 },
       mission: { mode: 'security', gsdCm: 2.5, frontOverlap: 75, sideOverlap: 65, angleMode: 'auto', angle: 90, weight: 30,
-        layering: true, layerSep: 10, clearance: 15, maxAlt: 120, reservePct: 25, swapMin: 4, inspectSec: 15, opsHours: 6, repeatMin: 30,
+        layering: true, layerSep: 10, clearance: 15, maxAlt: 120, viewGsdCm: 5, reservePct: 25, swapMin: 4, inspectSec: 15, opsHours: 6, repeatMin: 30,
         selection: 'auto', continuous: true },
       security: Object.assign({}, Engine.SEC_DEFAULTS),
       costs: { elecPrice: 3.2, chargerEff: 85, fuelPrice: 52, batteryPrice: 9500, batteryCycles: 300 },
@@ -2224,6 +2454,19 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     gRoutes.clearLayers();
     if (!R || R.error) return;
     if (R.mode === 'security') { drawSecurityMap(); return; }
+    if (R.mode === 'perimeter') {
+      // çevre rotası arsa başına bir kez; dronelar bu halkada eşit aralıkla döner
+      const seen = new Set();
+      R.drones.forEach((d, i) => {
+        if (d.empty || !d.loops || !d.loops.length) return;
+        const pi = d.parcelIdx[0];
+        L.polyline(d.wps.slice(0, 2).map((w) => w.ll).concat([d.loops[0][0]]), { color: MAP_COLORS[i % 6], weight: 1.5, opacity: 0.8, dashArray: '4 6', interactive: false }).addTo(gRoutes);
+        if (seen.has(pi)) return; seen.add(pi);
+        L.polyline(d.loops[0], { color: '#ffffff', weight: 6, opacity: 0.55, interactive: false }).addTo(gRoutes);
+        L.polyline(d.loops[0], { color: '#f2c14e', weight: 3, opacity: 1, interactive: false }).addTo(gRoutes);
+      });
+      return;
+    }
     R.drones.forEach((d, i) => {
       if (d.empty) return;
       const col = MAP_COLORS[i % 6], isSel = i === selected;
@@ -2247,6 +2490,25 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     map.fitBounds(b, { paddingTopLeft: [40, 40], paddingBottomRight: [window.innerWidth > 760 ? 190 : 40, 80] });
   }
   $('#btnFit').addEventListener('click', fit);
+
+  /* ---------- Büyük simülasyon görünümü: yan paneller gizlenir, harita ve simülasyon büyür, destekleniyorsa tam ekran ---------- */
+  const isExpanded = () => $('.app').classList.contains('expanded');
+  function setExpanded(on) {
+    const app = $('.app');
+    app.classList.toggle('expanded', on);
+    $$('[data-expand]').forEach((b) => {
+      b.setAttribute('aria-pressed', on);
+      b.setAttribute('aria-label', on ? 'Haritayı küçült' : 'Haritayı ve simülasyonu büyüt');
+      b.querySelector('i').className = 'ph ph-' + (on ? 'arrows-in' : 'arrows-out');
+      const sp = b.querySelector('span'); if (sp) sp.textContent = on ? 'Küçült' : 'Büyüt';
+    });
+    if (on && app.requestFullscreen && !document.fullscreenElement) app.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    setTimeout(() => map.invalidateSize(), 80);
+    setTimeout(() => map.invalidateSize(), 400);
+  }
+  $$('[data-expand]').forEach((b) => b.addEventListener('click', () => setExpanded(!isExpanded())));
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isExpanded()) setExpanded(false); });
 
   /* ---------- Harita araçları ---------- */
   let tool = null, draft = [], redrawIdx = -1;
@@ -2300,6 +2562,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   document.addEventListener('keydown', (e) => {
     const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
     if (e.key === 'Escape' && tool) setTool(tool);
+    else if (e.key === 'Escape' && isExpanded()) setExpanded(false);
     else if (e.key === 'Enter' && tool === 'draw' && !typing) finishDraw();
     else if (e.key === ' ' && !typing && document.activeElement?.tagName !== 'BUTTON' && R && !R.error) { e.preventDefault(); toggleSim(); }
   });
@@ -2625,9 +2888,14 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
         h('div', null, h('b', { text: fmtDur(p.revisitAvgSec) }), R.mode === 'perimeter' ? 'ziyaret aralığı' : 'ort. tekrar'),
         h('div', null, h('b', { text: R.continuous ? fmt(p.cycles) : fmt(p.onStationMean, 1) }), R.continuous ? (R.mode === 'perimeter' ? 'tur' : 'döngü') : 'görevde drone'),
         R.continuous ? h('div', null, h('b', { text: fmt(p.onStationMean, 2) }), 'ort. görevdeki drone') : null,
-        R.continuous && R.mode === 'perimeter' ? h('div', null, h('b', { text: fmtDur(p.gapSec) }), 'boş kalınan süre') : null,
+        R.continuous && R.mode === 'perimeter' ? h('div', null, h('b', { text: fmtDur(p.gapSec) === '-' ? 'yok' : fmtDur(p.gapSec) }), 'boş kalınan süre') : null,
+        R.mode === 'perimeter' && p.viewMean !== undefined ? h('div', null, h('b', { text: '%' + fmt(p.viewMean * 100, 1) }), 'anlık çevre görüşü') : null,
+        R.mode === 'perimeter' && p.revisitMaxSec !== undefined ? h('div', null, h('b', { text: fmtSec(p.revisitMaxSec) }), 'en uzun bekleme') : null,
+        R.mode === 'perimeter' && p.targetGapM ? h('div', null, h('b', { text: fmt(p.targetGapM) + ' m' }), 'hedef aralık') : null,
         R.mode === 'coverage' && p.angle !== null ? h('div', null, h('b', { text: fmt((90 - p.angle + 360) % 180) + '°' }), 'şerit yönü') : null)
         : h('div', { class: 'sub', style: 'color:var(--crit);font-size:12.5px;margin-top:6px', text: 'Bu arsaya drone atanamadı.' }),
+      R.mode === 'perimeter' && p.viewMean !== undefined && p.drones.length > 1 ? h('p', { class: 'chart-cap', text:
+        `Dronelar çevreye eşit aralıkla yayılır (aralık düzgünlüğü %${fmt(Math.max(0, 1 - p.spacingCv) * 100)}). Dağıtmadan uçsalardı: görüş %${fmt(p.viewBase * 100, 1)}, en uzun bekleme ${fmtSec(p.revisitMaxBase)}, aralık düzgünlüğü %${fmt(Math.max(0, 1 - p.spacingCvBase) * 100)}.` }) : null,
       h('div', { class: 'chips' }, ...p.drones.map((i) => h('span', { class: 'chip' }, h('span', { class: 'swatch', style: `background:${dColor(i)}` }), `${R.drones[i].name} ${R.drones[i].alt} m`)))));
 
     const dlist = R.drones.filter((d) => d.used).map((d) => {
@@ -2662,6 +2930,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       h('h2', { text: 'Uyarılar' }), h('div', { class: 'warns' }, warns),
       h('h2', { text: 'Drone seçimi' }), ...selRows,
       h('h2', { text: 'Arsalar' }), ...parcelRows,
+      sd && sp && R.mode === 'perimeter' && sp.viewSeries ? [h('h2', { text: `Anlık çevre görüşü: ${sp.name}` }), chartBox('cView', 'Kamera görüş alanlarının o an kapladığı çevre oranı (%). Dronelar yayıldıkça artar; batarya değişimlerinde kısa düşüşler olur.')] : null,
       sd && sp && R.continuous ? [h('h2', { text: `Görevdeki drone sayısı: ${sp.name}` }), chartBox('cOn', 'Arsada o an çekim veya devriye yapan drone sayısı. Sıfıra düşen yerler gözlem boşluğudur.')] : null,
       h('h2', { text: 'Filo planı' }), ...dlist,
       sd ? [
@@ -2676,7 +2945,26 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       drawTimeChart('cAlt', sd, (s) => s.z, 'm', null);
       drawTimeChart('cBat', sd, (s) => s.bat, '%', 100 - 100 * sd.usable / (sd.full || 1), [0, 100]);
       if (sp && R.continuous) drawSeriesChart('cOn', sp);
+      if (sp && R.mode === 'perimeter' && sp.viewSeries) drawPctChart('cView', sp.viewSeries, sp.seriesStep || 60, 'görüş');
     }
+  }
+  function drawPctChart(id, ser, step, label) {
+    const cv = $('#' + id); if (!cv || !ser || !ser.length) return;
+    const { ctx, w, h: hh } = setupCanvas(cv);
+    const tmax = (ser.length - 1) * step || 1, pad = { l: 40, r: 12, t: 10, b: 24 };
+    const ymax = Math.min(100, Math.max(20, Math.ceil(Math.max(...ser) / 20) * 20));
+    const X = (t) => pad.l + (w - pad.l - pad.r) * t / tmax, Y = (v) => pad.t + (hh - pad.t - pad.b) * (1 - v / ymax);
+    axes(ctx, w, hh, pad, [0, tmax], [0, ymax], (t) => clock(t), (v) => fmt(v) + '%');
+    ctx.fillStyle = css('--accent-soft'); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+    ser.forEach((v, k) => ctx.lineTo(X(k * step), Y(v)));
+    ctx.lineTo(X(tmax), Y(0)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (sim.t > 0) { ctx.strokeStyle = css('--text'); ctx.beginPath(); ctx.moveTo(X(Math.min(sim.t, tmax)), pad.t); ctx.lineTo(X(Math.min(sim.t, tmax)), hh - pad.b); ctx.stroke(); }
+    hover(cv, pad, (mx) => {
+      const t = (mx - pad.l) / (w - pad.l - pad.r) * tmax; if (t < 0 || t > tmax) return null;
+      const v = ser[Math.min(ser.length - 1, Math.round(t / step))];
+      return { x: X(t), y: Y(v), tip: [h('b', { text: 'T+' + clock(t) }), h('br'), `%${v} ${label}`] };
+    }, () => drawPctChart(id, ser, step, label));
   }
   const fmtSec = (s) => (!(s > 0) ? 'yok' : s < 90 ? `${Math.round(s)} sn` : fmtDur(s));
   function renderSecurityResults(box) {
@@ -3031,11 +3319,13 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     const list = R && !R.error ? R.drones.filter((d) => d.used) : [];
     s.replaceChildren(...(list.length ? list.map((d) => h('option', { value: d.idx, text: `Gösterge: ${d.name}` })) : [h('option', { value: -1, text: 'Drone seçilmedi' })]));
     s.value = selected;
-    gSim.clearLayers(); sim.marks = []; sim.trails = []; sim.idx = []; sim.fired = [];
+    gSim.clearLayers(); sim.marks = []; sim.trails = []; sim.fov = []; sim.idx = []; sim.fired = [];
     if (!R || R.error) { updateGauges(); return; }
     R.drones.forEach((d, i) => {
       sim.idx.push(-1); sim.fired.push(0);
-      if (d.empty || !d.timeline.length) { sim.marks.push(null); sim.trails.push(null); return; }
+      if (d.empty || !d.timeline.length) { sim.marks.push(null); sim.trails.push(null); sim.fov.push(null); return; }
+      // kamera görüş alanı (yaklaşık yer izi)
+      sim.fov.push(d.fpW ? L.circle(d.timeline[0].ll, { radius: d.fpW / 2, color: MAP_COLORS[i % 6], weight: 1.5, opacity: 0.9, fillColor: MAP_COLORS[i % 6], fillOpacity: 0.18, interactive: false }) : null);
       const ic = d.type === 'fixed' ? 'airplane-tilt' : 'drone';
       sim.marks.push(L.marker(d.timeline[0].ll, { icon: divIcon(`<div class="uav"><div class="body" style="background:${MAP_COLORS[i % 6]}"><i class="ph-fill ph-${ic}"></i></div><span class="tag">${esc(d.name)}</span></div>`, [30, 30]), interactive: false, keyboard: false, zIndexOffset: 1000 }));
       sim.trails.push(L.polyline([], { color: '#ffffff', weight: 2, opacity: 0.85, interactive: false }).addTo(gSim));
@@ -3053,13 +3343,19 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       if (!show && gSim.hasLayer(mk)) gSim.removeLayer(mk);
       const ll = toLL([s.x, s.y]);
       mk.setLatLng(ll);
+      const fov = sim.fov[i];
+      if (fov) { const air = show && s.z > 5; if (air && !gSim.hasLayer(fov)) fov.addTo(gSim); if (!air && gSim.hasLayer(fov)) gSim.removeLayer(fov); fov.setLatLng(ll); }
       const bodyEl = mk.getElement()?.querySelector('.body i');
       if (bodyEl) bodyEl.style.transform = `rotate(${s.hdg}deg)`;
       if (ix !== sim.idx[i] || sim.running) {
-        const from = Math.max(0, ix - (R.mode === 'security' ? 8 : TRAIL)), pts = [];
+        // iz yalnız son kesintisiz uçuş parçasını gösterir (iniş ve kalkış noktalarını birleştirmez)
+        // devriyede iz son 90 sn'lik devriye yolu, diğer görevlerde son örnekler
+        const patrolOnly = R.mode === 'security' || R.mode === 'perimeter', pts = [];
+        let from = ix;
+        while (from > 0 && tl[from - 1].z > 5 && tl[from].z > 5 && (patrolOnly ? tl[from - 1].cap && sim.t - tl[from - 1].t <= 90 : ix - from < TRAIL)) from--;
         for (let k = from; k <= ix; k++) pts.push(tl[k].ll);
         pts.push(ll);
-        sim.trails[i].setLatLngs(show ? pts : []);
+        sim.trails[i].setLatLngs(show && s.z > 5 ? pts : []);
       }
       if (withEvents) fireEvents(d, i, ix); else sim.fired[i] = ix + 1;
       sim.idx[i] = ix;
@@ -3074,6 +3370,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     for (let k = sim.fired[i]; k <= ix && k < tl.length; k++) {
       const s = tl[k], at = { simTime: s.t };
       if (n > 6) break; // tek karede kayıt taşmasın
+      if (R && R.mode === 'perimeter' && s.msg) { log(i, s.msg, null, at); n++; continue; }
       if (R && R.mode === 'security') {
         // güvenlik benzetimi olayları kendi mesajını taşır; rutin şarj ve hazır bekleme kayda yazılmaz
         if (s.msg) { log(i, s.msg, s.k === 'fail' ? 'crit' : s.k === 'ready' || s.k === 'deliver' ? 'ok' : /Boş kalan|zorunda/.test(s.msg) ? 'warn' : null, at); n++; }
