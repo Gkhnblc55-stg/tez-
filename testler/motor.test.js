@@ -331,4 +331,159 @@ test('Güvenlik: varsayılan plan (6 drone, 24 saat, 8 deneme, tüm yapılandır
   assert.ok(ms < 3000, ms + ' ms');
 });
 
+/* ---------- Dış drone tehdidi: tespit ve önleme ---------- */
+const ALL_SC = ['direct', 'lowalt', 'swarm', 'multi', 'decoy', 'loiter', 'fixedwing'];
+const defIn = (def = {}, sec = {}) => secIn(Object.assign({ runs: 4 }, sec), {
+  defense: Object.assign({ enabled: true, scenarios: ALL_SC, radars: 1, rfs: 1, eos: 2, acoustics: 2, jammers: 1, interceptors: 3,
+    patrolAssist: true, runs: 20, seed: 11, autonomousPct: 30, reactionSec: 15 }, def),
+});
+const sc = (r, id) => r.defense.scenarios.find(s => s.id === id);
+
+test('Savunma: kapalıyken sonuçta savunma bölümü yok', () => {
+  const r = Engine.planMission(secIn({ runs: 4 }));
+  assert.strictEqual(r.defense, undefined);
+});
+
+test('Savunma: sensörler istenen sayıda ve alan içinde yerleşir, 36 yönlü kör sektör analizi verilir', () => {
+  const r = Engine.planMission(defIn());
+  const n = (t) => r.defense.sensors.filter(s => s.type === t).length;
+  assert.deepStrictEqual([n('radar'), n('rf'), n('eo'), n('acoustic')], [1, 1, 2, 2]);
+  r.defense.sensors.concat(r.defense.jammers).forEach(s => assert.ok(insideLL(s.ll, ATAKOY), s.type + ' dışarıda'));
+  assert.strictEqual(r.defense.sectors.length, 36);
+  assert.strictEqual(r.defense.scenarios.length, ALL_SC.length);
+});
+
+test('Savunma: aynı tohumla aynı sonuç', () => {
+  const a = Engine.planMission(defIn()), b = Engine.planMission(defIn());
+  assert.deepStrictEqual(a.defense.scenarios.map(s => [s.detectRate, s.leakRate]), b.defense.scenarios.map(s => [s.detectRate, s.leakRate]));
+});
+
+test('Savunma: sensörler tekil tehdidi yüksek olasılıkla ve çok daha erken tespit eder (sensörsüzde yalnız devriye kamerası görür)', () => {
+  const full = sc(Engine.planMission(defIn({ scenarios: ['direct'] })), 'direct');
+  const none = sc(Engine.planMission(defIn({ scenarios: ['direct'], radars: 0, rfs: 0, eos: 0, acoustics: 0 })), 'direct');
+  assert.ok(full.detectRate >= 0.9, 'tespit ' + full.detectRate);
+  assert.ok(full.detectDistM > 1.5 * none.detectDistM, `tespit mesafesi sensörlü ${full.detectDistM} / sensörsüz ${none.detectDistM}`);
+  assert.ok(none.firstBy.patrol > 0.99, 'sensörsüzde ilk tespit devriye kamerasıyla olmalı');
+  assert.ok(full.warnSec > none.warnSec, 'erken uyarı sensörle artmalı');
+});
+
+test('Savunma: alçak irtifa tehdidi radarla daha geç (daha yakında) tespit edilir', () => {
+  const r = Engine.planMission(defIn({ scenarios: ['direct', 'lowalt'], rfs: 0, eos: 0, acoustics: 0, patrolAssist: false, autonomousPct: 0 }));
+  assert.ok(sc(r, 'lowalt').detectDistM < sc(r, 'direct').detectDistM, `alçak ${sc(r, 'lowalt').detectDistM} / normal ${sc(r, 'direct').detectDistM}`);
+});
+
+test('Savunma: otonom tehditleri RF dedektör göremez, karıştırıcı etkisizleştiremez', () => {
+  const r = Engine.planMission(defIn({ scenarios: ['direct'], autonomousPct: 100, radars: 0, eos: 0, acoustics: 0, patrolAssist: false, interceptors: 0 }));
+  const s = sc(r, 'direct');
+  assert.strictEqual(s.seenBy.rf, 0, 'RF dedektör otonom tehdidi görmemeli');
+  assert.strictEqual(s.byEffector.jammer, 0);
+});
+
+test('Savunma: sürü saldırısında önleyici sayısı arttıkça sızma azalır', () => {
+  const few = sc(Engine.planMission(defIn({ scenarios: ['swarm'], interceptors: 0, jammers: 0 })), 'swarm');
+  const many = sc(Engine.planMission(defIn({ scenarios: ['swarm'], interceptors: 8, jammers: 0 })), 'swarm');
+  assert.ok(many.leakRate < few.leakRate, `8 önleyici ${many.leakRate} / 0 önleyici ${few.leakRate}`);
+});
+
+test('Savunma: yem dronlu saldırıda asıl tehdidin sızma oranı tekil saldırıdan düşük değildir', () => {
+  const r = Engine.planMission(defIn({ scenarios: ['direct', 'decoy'], interceptors: 2, jammers: 0 }));
+  assert.ok(sc(r, 'decoy').mainLeakRate >= sc(r, 'direct').leakRate, `yem ${sc(r, 'decoy').mainLeakRate} / tekil ${sc(r, 'direct').leakRate}`);
+});
+
+test('Savunma: her senaryo için oynatılabilir temsilî saldırı ve olay kaydı üretilir', () => {
+  const r = Engine.planMission(defIn());
+  r.defense.scenarios.forEach(s => {
+    assert.ok(s.rep && s.rep.threats.length >= 1 && s.rep.threats[0].timeline.length > 2, s.id + ' temsilî yok');
+    assert.ok(s.rep.t0 >= 0 && s.rep.t0 < r.windowSec, s.id + ' başlangıç zamanı');
+    assert.ok(s.rep.events.some(e => /TESPİT|SIZMA/.test(e.msg)), s.id + ' olay yok');
+  });
+});
+
+test('Savunma: önleyici sayısına göre duyarlılık analizi verilir', () => {
+  const r = Engine.planMission(defIn());
+  assert.ok(r.defense.sensitivity.length >= 3);
+  const f = r.defense.sensitivity;
+  assert.ok(f[f.length - 1].leakRate <= f[0].leakRate, 'daha çok önleyiciyle sızma artmamalı');
+});
+
+test('Savunma: tüm senaryolar dahil ek hesap 2,5 saniyenin altında', () => {
+  const t0 = Date.now(); Engine.planMission(secIn({ runs: 4 })); const base = Date.now() - t0;
+  const t1 = Date.now(); Engine.planMission(defIn()); const withDef = Date.now() - t1;
+  assert.ok(withDef - base < 2500, `ek süre ${withDef - base} ms`);
+});
+
+// İsteğe bağlı saldırılar: rastgele saldırı, saldırı planı, aynı anda farklı yönler
+const defR = Engine.planMission(defIn({ scenarios: ['direct', 'swarm', 'multi', 'decoy'] }));
+const GEO = JSON.parse(JSON.stringify(defR.defense.geo || {}));
+const PAT = JSON.parse(JSON.stringify(defR.drones.filter((d) => d.timeline && d.timeline.length).map((d) => ({ name: d.name, timeline: d.timeline.map((s) => ({ t: s.t, x: s.x, y: s.y, z: s.z })) }))));
+const bearingOf = (p) => ((Math.atan2(p.x - GEO.C[0], p.y - GEO.C[1]) * 180 / Math.PI) + 360) % 360;
+const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+
+test('Saldırı: savunma sonucu saldırı benzetimi için geometri verir', () => {
+  assert.ok(GEO && GEO.sensors.length && GEO.bases.length && GEO.assets.length && GEO.origin && GEO.spawnR > 0);
+});
+
+test('Saldırı: rastgele saldırı aynı tohumla aynıdır, 1-3 dalga farklı yönlerden gelir', () => {
+  assert.deepStrictEqual(Engine.randomAttack(42, ['direct', 'swarm']), Engine.randomAttack(42, ['direct', 'swarm']));
+  let multi = 0;
+  for (let s = 1; s <= 40; s++) {
+    const a = Engine.randomAttack(s, ['direct', 'swarm']);
+    assert.ok(a.waves.length >= 1 && a.waves.length <= 3);
+    a.waves.forEach((w) => assert.ok(['direct', 'swarm'].includes(w.scenario)));
+    for (let i = 0; i < a.waves.length; i++) for (let j = i + 1; j < a.waves.length; j++) assert.ok(angDiff(a.waves[i].bearing, a.waves[j].bearing) >= 60, 'yönler en az 60° ayrık');
+    if (a.waves.length > 1) multi++;
+  }
+  assert.ok(multi >= 10, 'çok yönlü rastgele saldırılar da üretilmeli');
+});
+
+test('Saldırı: planlanan iki dalga aynı anda karşı yönlerden gelir', () => {
+  const r = Engine.simulateAttacks(GEO, [{ t0: 3600, seed: 5, waves: [{ scenario: 'direct', bearing: 0, delaySec: 0 }, { scenario: 'direct', bearing: 180, delaySec: 0 }] }], PAT);
+  assert.strictEqual(r.threats.length, 2);
+  const [a, b] = r.threats;
+  near(bearingOf(a.timeline[0]), 0, 25, 'ilk dalga kuzeyden');
+  near(angDiff(bearingOf(b.timeline[0]), 180), 0, 25, 'ikinci dalga güneyden');
+  assert.ok(r.threats.every((th) => th.timeline[0].t >= 3600 && th.timeline[0].t <= 3605), 'iki dalga da aynı anda başlar');
+  assert.ok(r.events.length && r.events.every((e) => e.t >= 3600));
+  assert.strictEqual(r.attacks.length, 1);
+  assert.strictEqual(r.attacks[0].threats, 2);
+  assert.strictEqual(r.attacks[0].neutral + r.attacks[0].leak + r.attacks[0].other, 2);
+});
+
+test('Saldırı: dalga sayısı, gecikme ve otonomluk ayarı uygulanır', () => {
+  const r = Engine.simulateAttacks(GEO, [{ t0: 600, seed: 9, waves: [
+    { scenario: 'swarm', bearing: 90, count: 4, delaySec: 0, auto: 'yes' },
+    { scenario: 'multi', bearing: 0, count: 5, delaySec: 60, auto: 'no' }] }], PAT);
+  const sw = r.threats.filter((t) => t.wave === 0), mu = r.threats.filter((t) => t.wave === 1);
+  assert.strictEqual(sw.length, 4); assert.strictEqual(mu.length, 5);
+  assert.ok(sw.every((t) => t.auto) && mu.every((t) => !t.auto));
+  assert.ok(mu.every((t) => t.timeline[0].t >= 660), 'gecikmeli dalga 60 sn sonra');
+  const bs = mu.map((t) => bearingOf(t.timeline[0])).sort((p, q) => p - q);
+  for (let i = 1; i < bs.length; i++) near(bs[i] - bs[i - 1], 72, 35, 'çok yönlü dalga eşit aralıklı');
+});
+
+test('Saldırı: sonradan eklenen saldırı önceki saldırının geçmişini değiştirmez', () => {
+  const A = { t0: 1200, seed: 3, waves: [{ scenario: 'swarm', bearing: 45, count: 6 }] };
+  const B = { t0: 1300, seed: 4, waves: [{ scenario: 'direct', bearing: 225 }] };
+  const one = Engine.simulateAttacks(GEO, [A], PAT), two = Engine.simulateAttacks(GEO, [A, B], PAT);
+  const before = (r) => r.events.filter((e) => e.t < 1300).map((e) => e.t + e.msg);
+  assert.deepStrictEqual(before(two), before(one));
+  assert.strictEqual(two.attacks.length, 2);
+  assert.ok(two.threats.some((t) => t.attack === 1));
+});
+
+test('Saldırı: önleyiciler saldırılar arasında ortaktır', () => {
+  const g1 = Object.assign({}, GEO, { DF: Object.assign({}, GEO.DF, { interceptors: 1, jammers: 0 }), jammers: [] });
+  const A = { t0: 0, seed: 1, waves: [{ scenario: 'direct', bearing: 0, auto: 'yes' }] };
+  const B = { t0: 0, seed: 2, waves: [{ scenario: 'direct', bearing: 180, auto: 'yes' }] };
+  const r = Engine.simulateAttacks(g1, [A, B], PAT);
+  assert.strictEqual(r.interceptors.length, 1, 'tek önleyici iki saldırıya da hizmet eder');
+});
+
+test('Saldırı: saatler arayla planlanan saldırılar hızlı hesaplanır', () => {
+  const t = Date.now();
+  const r = Engine.simulateAttacks(GEO, [{ t0: 0, seed: 1, waves: [{ scenario: 'direct' }] }, { t0: 6 * 3600, seed: 2, waves: [{ scenario: 'random' }] }], PAT);
+  assert.ok(Date.now() - t < 1500, `süre ${Date.now() - t} ms`);
+  assert.ok(r.threats.filter((x) => x.attack === 1).every((x) => x.timeline[0].t >= 6 * 3600));
+});
+
 console.log(`\n${passed} test geçti`);

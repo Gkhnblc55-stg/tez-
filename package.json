@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node sunucu.js --ac",
     "test": "node testler/motor.test.js",
-    "csp": "node araclar/csp-guncelle.js"
+    "csp": "node araclar/csp-guncelle.js",
+    "denetle": "node araclar/sozdizimi-denetle.js"
   }
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-5qD42BNNzjsQuHfuqcE91JVbHBpKtuIwKUaOYHLBpQ8=' 'sha256-J6KHpCacRywYV9UGxmZhr8TmfApiUzstKP5dCSo20Is='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://unpkg.com 'sha256-FapfChd2PWkJ/GQLtv4Jo77KlFkM5+0LLexCkxPNa2g=' 'sha256-TgRF37a7/99Ex1mTRnEBosvSuOp10HcXkjhysffpkSw='; style-src 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://unpkg.com; img-src data: blob: https://server.arcgisonline.com https://tile.openstreetmap.org; connect-src 'none'; worker-src blob:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Nöbetçi Rota Planlayıcı</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,6 +31,7 @@
   --ok: #5cc98c;
   --warn: #eaa53c;
   --crit: #ef6158;
+  --crit-ink: #2a0806;
   --focus: #8ec5ff;
   --dial-face: #101613;
   --seg-1: #f2c14e; --seg-2: #c9983a; --seg-3: #96712c; --seg-4: #5f4a22;
@@ -47,7 +48,7 @@
     --bg: #e9ede8; --panel: #f8faf7; --panel-2: #eef2ed; --line: #d3dbd4; --line-strong: #b9c4bc;
     --text: #17201b; --muted: #4e5c54; --faint: #6c7a72;
     --accent: #e8b23a; --accent-ink: #1d1604; --accent-soft: rgba(196, 140, 20, .14);
-    --ok: #1f8a52; --warn: #a86400; --crit: #c8352d; --focus: #1f66c2; --dial-face: #f3f6f2;
+    --ok: #1f8a52; --warn: #a86400; --crit: #c8352d; --crit-ink: #ffffff; --focus: #1f66c2; --dial-face: #f3f6f2;
     --seg-1: #e8b23a; --seg-2: #c08a1e; --seg-3: #8d6516; --seg-4: #5b420f;
     --d0: #2a78d6; --d1: #eb6834; --d2: #1baf7a; --d3: #eda100; --d4: #e87ba4; --d5: #4a3aa7;
     --shadow: 0 10px 30px rgba(40, 60, 50, .14);
@@ -58,7 +59,7 @@
   --bg: #e9ede8; --panel: #f8faf7; --panel-2: #eef2ed; --line: #d3dbd4; --line-strong: #b9c4bc;
   --text: #17201b; --muted: #4e5c54; --faint: #6c7a72;
   --accent: #e8b23a; --accent-ink: #1d1604; --accent-soft: rgba(196, 140, 20, .14);
-  --ok: #1f8a52; --warn: #a86400; --crit: #c8352d; --focus: #1f66c2; --dial-face: #f3f6f2;
+  --ok: #1f8a52; --warn: #a86400; --crit: #c8352d; --crit-ink: #ffffff; --focus: #1f66c2; --dial-face: #f3f6f2;
   --seg-1: #e8b23a; --seg-2: #c08a1e; --seg-3: #8d6516; --seg-4: #5b420f;
   --d0: #2a78d6; --d1: #eb6834; --d2: #1baf7a; --d3: #eda100; --d4: #e87ba4; --d5: #4a3aa7;
   --shadow: 0 10px 30px rgba(40, 60, 50, .14);
@@ -133,7 +134,7 @@ button, input, select { font: inherit; color: inherit; }
 .pane[hidden] { display: none; }
 .pane h2 { font: 600 15px/1.3 var(--font-num); margin: 18px 0 10px; letter-spacing: .01em; }
 .pane h2:first-child { margin-top: 2px; }
-.pane > p.lead { color: var(--muted); margin: -4px 0 12px; font-size: 13px; }
+.pane p.lead { color: var(--muted); margin: -4px 0 12px; font-size: 13px; }
 
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 12px; }
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
@@ -218,6 +219,53 @@ input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 28px
 .legend-map .ln { width: 22px; height: 0; border-top: 3px solid; }
 .legend-map .ln.dash { border-top-style: dashed; border-top-width: 2px; }
 
+/* Saldırı merkezi: harita üstünde rastgele ve planlı saldırı */
+.atkbar { position: absolute; left: 10px; top: 84px; z-index: 550; display: flex; flex-direction: column; gap: 6px; }
+.atkbar[hidden], .atkpanel[hidden] { display: none; }
+.atkbar .btn { box-shadow: var(--shadow); justify-content: flex-start; }
+.btn.atk { background: var(--crit); color: var(--crit-ink); border-color: transparent; font-weight: 600; }
+.btn.atk:hover { filter: brightness(1.07); }
+.atkbar .cnt { font: 600 11px/1 var(--font-num); background: var(--bg); color: var(--text); border-radius: 9px; padding: 3px 6px; }
+.atkpanel {
+  position: absolute; left: 10px; top: 10px; bottom: 10px; z-index: 1001; width: min(350px, calc(100% - 200px)); min-width: 280px; display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-panel); box-shadow: var(--shadow); font-size: 13px;
+}
+.atkpanel .ap-h { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 14px; border-bottom: 1px solid var(--line); }
+.atkpanel .ap-h h2 { margin: 0; flex: 1; font: 600 15px/1.2 var(--font-num); }
+.atkpanel .ap-b { overflow-y: auto; padding: 12px 14px 14px; scrollbar-width: thin; display: flex; flex-direction: column; gap: 12px; }
+.atkpanel h3 { margin: 4px 0 0; font: 600 12px/1.2 var(--font-num); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.atkpanel .seg button { min-height: 36px; flex-direction: row; gap: 6px; }
+.atkpanel select, .atkpanel input { width: 100%; min-height: 34px; padding: 5px 8px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); }
+.atkpanel input[type="number"], .atkpanel input.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.wave { border: 1px solid var(--line); border-left: 3px solid var(--crit); border-radius: 8px; padding: 8px 10px 10px; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wave legend { padding: 0 4px; font: 600 12.5px/1 var(--font-num); }
+.wave .af { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wave .af.wide { grid-column: 1 / -1; }
+.wave .af > label, .wave .af > span { font-size: 12px; color: var(--muted); }
+.wave .inl { display: flex; gap: 6px; }
+.wave .inl .btn { min-height: 34px; flex: none; }
+.wave .rm { grid-column: 1 / -1; justify-self: end; min-height: 30px; font-size: 12.5px; }
+.ap-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ap-row .btn { flex: 1; }
+.ap-note { margin: 0; color: var(--faint); font-size: 12px; line-height: 1.45; }
+.atk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.atk-item { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.atk-item .ah { display: flex; align-items: center; gap: 8px; }
+.atk-item .ah b { font: 600 13px/1 var(--font-num); }
+.atk-item .ah .num { font-family: var(--font-num); color: var(--muted); }
+.atk-item .st { margin-left: auto; font-size: 11.5px; padding: 2px 7px; border-radius: 9px; border: 1px solid var(--line-strong); color: var(--muted); }
+.atk-item .st.run { color: var(--crit); border-color: var(--crit); }
+.atk-item .st.done { color: var(--ok); border-color: var(--ok); }
+.atk-item .st.leak { color: var(--crit); border-color: var(--crit); background: rgba(239,97,88,.1); }
+.atk-item .ad, .atk-item .ar { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.atk-item .ar { color: var(--text); }
+.atk-item .ab { display: flex; gap: 6px; justify-content: flex-end; }
+.atk-item .ab .btn { min-height: 30px; padding: 0 9px; font-size: 12.5px; }
+.atk-dir { font: 600 11px/1 var(--font-num); color: #fff; background: rgba(176, 32, 26, .9); padding: 3px 6px; border-radius: 4px; white-space: nowrap; }
+@media (max-width: 760px) {
+  .atkpanel { width: auto; min-width: 0; right: 10px; }
+  .atkbar { flex-direction: row; }
+}
 .vx { width: 12px; height: 12px; background: #fff; border: 2px solid #1b1b1b; border-radius: 2px; }
 .pin-home { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #1d1604; display: grid; place-items: center; font-size: 17px; border: 2px solid #1d1604; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
 .pin-poi { width: 26px; height: 26px; border-radius: 50% 50% 50% 2px; transform: rotate(-45deg); background: #f4f6f4; border: 2px solid #1b1b1b; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
@@ -329,6 +377,9 @@ details.method li { margin: 5px 0; }
 .tagk { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font: 700 12px/1 var(--font-num); flex: none; }
 .tagp { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; border: 2px solid var(--accent); color: var(--text); font: 700 12px/1 var(--font-num); flex: none; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip-check { cursor: pointer; padding: 5px 10px; font-size: 12.5px; }
+.chip-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+.subh { font: 600 12.5px/1.3 var(--font-ui); color: var(--muted); margin: 14px 0 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; }
 .sel-row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: start; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .sel-row + .sel-row { margin-top: 6px; }
@@ -352,6 +403,25 @@ details.method li { margin: 5px 0; }
 .cfgt th { text-align: left; color: var(--muted); font-weight: 600; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .cfgt td { padding: 6px 8px; font-family: var(--font-num); white-space: nowrap; }
 .cfgt tr.on td { background: var(--accent-soft); }
+.pin-sens { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; background: #10161a; color: var(--c); border: 2px solid var(--c); font-size: 15px; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+.thr, .intc { position: relative; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.thr { background: #e5483f; border: 2px solid #fff; }
+.thr.decoy { background: #f08a5d; }
+.thr.gone { background: #6b6f6d; opacity: .7; }
+.thr.hit { background: #b0201a; outline: 3px solid rgba(239,97,88,.6); }
+.intc { width: 22px; height: 22px; background: #f4f6f4; color: #1b1b1b; border: 2px solid #1b1b1b; font-size: 13px; }
+.thr .tag, .intc .tag { position: absolute; left: 28px; top: 3px; white-space: nowrap; font: 600 11px/1 var(--font-num); color: #fff; background: rgba(10, 14, 12, .8); padding: 3px 5px; border-radius: 4px; }
+.cfgt th[scope="row"] { font-family: var(--font-ui); color: var(--text); font-weight: 500; white-space: normal; min-width: 120px; }
+.cfgt .play { min-height: 30px; width: 30px; }
+.cfgt td.bad { color: var(--crit); font-weight: 600; }
+.cfgt.def { font-size: 12px; }
+.cfgt.def th, .cfgt.def td { padding: 6px 5px; }
+.cfgt.def th[scope="row"] { min-width: 0; white-space: normal; }
+.sensbar { display: grid; grid-template-columns: 70px 1fr 48px; gap: 8px; align-items: center; font-size: 12.5px; }
+.sensbar + .sensbar { margin-top: 5px; }
+.sensbar .bar { height: 10px; border-radius: 3px; background: var(--crit); min-width: 2px; }
+.sensbar .bar.ok { background: var(--ok); }
+.legal { font-size: 12px; color: var(--muted); border-left: 3px solid var(--line-strong); padding: 6px 10px; margin-top: 10px; }
 .busy { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -491,6 +561,19 @@ details.method li { margin: 5px 0; }
           <div class="fields" id="secFailFields"></div>
           <h2>Benzetim</h2>
           <div class="fields" id="secSimFields"></div>
+          <h2>Dış drone tehdidi</h2>
+          <label class="check"><input type="checkbox" id="defOn"> <span>Alana dışarıdan bir veya birden fazla drone ile saldırı senaryolarını benzet; tespit ve önlemeyi planla</span></label>
+          <div id="defBox">
+            <p class="lead" style="margin-top:8px">Senaryolar kamuya açık karşı-İHA literatüründeki genel tehdit sınıflarıdır. Sensör ve etkisizleştirme değerleri yaklaşık varsayılandır; kendi sistemlerinizin verileriyle değiştirin. Karıştırma ve önleme araçları yalnız yetkili güvenlik birimlerince kullanılabilir.</p>
+            <div class="field wide"><label>Benzetilecek saldırı senaryoları</label><div class="chips" id="defScen"></div></div>
+            <h3 class="subh">Tespit katmanı (sensör sayısı)</h3>
+            <div class="fields" id="defSensFields"></div>
+            <h3 class="subh">Önleme katmanı</h3>
+            <label class="check"><input type="checkbox" id="defPatrol"> <span>Doğrulanan ize en yakın devriye drone'unu görsel tanımlama için yönlendir</span></label>
+            <div class="fields" id="defEffFields" style="margin-top:10px"></div>
+            <h3 class="subh">Varsayımlar</h3>
+            <div class="fields" id="defAsmFields"></div>
+          </div>
         </div>
         <div id="flowBox">
         <h2>Sürekli gözlem</h2>
@@ -556,6 +639,11 @@ details.method li { margin: 5px 0; }
       <button class="btn primary" type="button" id="hintDone" hidden>Bitir</button>
       <button class="btn" type="button" id="hintCancel">Vazgeç</button>
     </div>
+    <div class="atkbar" id="atkBar" role="group" aria-label="Saldırı benzetimi" hidden>
+      <button class="btn atk" type="button" id="btnRandAtk" title="Seçili senaryolardan 1-3 dalga, farklı yönlerden, hemen"><i class="ph-fill ph-shuffle" aria-hidden="true"></i><span>Rastgele saldırı</span></button>
+      <button class="btn" type="button" id="btnPlanAtk" aria-expanded="false" aria-controls="atkPanel"><i class="ph ph-crosshair" aria-hidden="true"></i><span>Saldırı planla</span><span class="cnt" id="atkCnt" hidden></span></button>
+    </div>
+    <div class="atkpanel" id="atkPanel" role="region" aria-label="Saldırı planlayıcı" hidden></div>
     <div class="windbadge" aria-live="polite">
       <div class="arrow"><i class="ph-fill ph-arrow-up" id="windArrow" aria-hidden="true"></i></div>
       <div><b class="num" id="windText">-</b><span id="windSub">rüzgâr</span></div>
@@ -576,7 +664,7 @@ details.method li { margin: 5px 0; }
         <button class="btn icon" type="button" id="btnReset" aria-label="Simülasyonu başa sar"><i class="ph ph-skip-back" aria-hidden="true"></i></button>
         <label class="sr-only" for="simSpeed">Simülasyon hızı</label>
         <select id="simSpeed">
-          <option value="30">30×</option><option value="60">60×</option><option value="300" selected>300×</option><option value="900">900×</option><option value="3600">3600×</option>
+          <option value="10">10×</option><option value="30">30×</option><option value="60">60×</option><option value="300" selected>300×</option><option value="900">900×</option><option value="3600">3600×</option>
         </select>
         <label class="sr-only" for="simDrone">Göstergelerde izlenen drone</label>
         <select id="simDrone"></select>
@@ -1924,6 +2012,442 @@ const Engine = (() => {
     };
   }
 
+  /* ---------- Dış drone tehdidi: tespit ve önleme (savunma amaçlı planlama benzetimi) ----------
+     Senaryo tipleri kamuya açık karşı-İHA literatüründeki genel tehdit sınıflarıdır; saldırgan dronlar yalnız yön, irtifa,
+     hız, sayı ve radyo yayını gibi genel özelliklerle modellenir. Sensör katmanları (radar, RF, EO/IR, akustik, devriye
+     kamerası) olasılıklı tespit yapar; iz, doğrulama ve sınıflandırma aşamalarından sonra angajman kuralı gereği müdahale
+     başlar. Varsayılan menziller derleme kaynaklarındaki kaba aralıklardır ve gerçek ürün verisiyle değiştirilmelidir. */
+  const DEF_DEFAULTS = { enabled: false, scenarios: ['direct', 'lowalt', 'swarm', 'multi', 'decoy', 'loiter', 'fixedwing'],
+    radars: 1, rfs: 1, eos: 2, acoustics: 2, jammers: 1, interceptors: 3, patrolAssist: true, runs: 30, seed: 11,
+    autonomousPct: 30, reactionSec: 15, radarKm: 1.5, rfKm: 2.0, eoKm: 0.8, acousticM: 250, jamKm: 1.0,
+    interceptorMs: 25, pkNet: 0.6, pkJam: 0.7, radarTracks: 6 };
+  const THREAT_SCENARIOS = {
+    direct: { name: 'Tekil doğrudan yaklaşma', desc: 'Tek çok rotorlu drone rastgele bir yönden sabit irtifada korunan noktaya düz uçar.' },
+    lowalt: { name: 'Alçak irtifadan sızma', desc: '15-30 m irtifada yaklaşır; radar yer yansımasında menzil kaybeder, kameranın görüş hattı kısalır.' },
+    swarm: { name: 'Sürü (doygunluk) saldırısı', desc: '6-10 drone aynı sektörden aynı anda gelir; radar iz kapasitesi ve önleyici sayısı zorlanır.' },
+    multi: { name: 'Çok yönlü eş zamanlı saldırı', desc: 'Üç drone yaklaşık 120 derece ayrı yönlerden aynı anda yaklaşır; tepki kaynakları bölünür.' },
+    decoy: { name: 'Yem ve asıl saldırı', desc: 'RF yayan iki yem drone bir yönden dikkat çeker; 60-90 sn sonra karşı yönden alçak ve otonom asıl drone gelir.' },
+    loiter: { name: 'Keşif, bekleme ve dalış', desc: 'Sınırın 300 m dışında iki dakika bekleyip gözetler, sonra hedefe dalar.' },
+    fixedwing: { name: 'Hızlı sabit kanat', desc: '25-35 m/s hızla, 80-120 m irtifada gelir; erken uyarı süresi kısalır.' },
+  };
+  const SENSOR_P = { radar: 0.7, rf: 0.85, eo: 0.5, acoustic: 0.5, patrol: 0.5 };
+  const SENSOR_NAME = { radar: 'radar', rf: 'RF dedektör', eo: 'EO/IR kamera', acoustic: 'akustik sensör', patrol: 'devriye kamerası' };
+
+  const defEffR = (DF) => (type, alt, auto, fixed) => {
+    if (type === 'radar') return DF.radarKm * 1000 * (alt < 35 ? 0.6 : 1) * (fixed ? 1.4 : 1);
+    if (type === 'rf') return auto ? 0 : DF.rfKm * 1000;
+    if (type === 'eo') return DF.eoKm * 1000 * (alt < 35 ? 0.8 : 1) * (fixed ? 1.2 : 1);
+    if (type === 'acoustic') return DF.acousticM * (fixed ? 0.7 : 1);
+    if (type === 'jammer') return auto ? 0 : DF.jamKm * 1000;
+    return 0;
+  };
+
+  /* Dış tehdit benzetim çekirdeği: savunma planı ve isteğe bağlı saldırılar aynı kodla benzetilir. */
+  function defenseCore(G, patrols) {
+    const { DF, poly, C, reach, spawnR, sensors, jammers, bases, assets } = G;
+    const effR = defEffR(DF), DR = D;
+  // Devriye dronelarının zaman çizelgesinden konum
+  const patAt = (tl, T) => {
+    if (!tl || !tl.length) return null;
+    if (T <= tl[0].t || T >= tl[tl.length - 1].t) return null;
+    let lo = 0, hi = tl.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tl[mid].t <= T) lo = mid; else hi = mid; }
+    const a = tl[lo], b2 = tl[hi], f = (T - a.t) / ((b2.t - a.t) || 1);
+    const z = a.z + (b2.z - a.z) * f;
+    return z > 5 ? [a.x + (b2.x - a.x) * f, a.y + (b2.y - a.y) * f] : null;
+  };
+
+  const U = (rnd, a, b) => a + (b - a) * rnd();
+  function genThreats(id, rnd, opt) {
+    opt = opt || {};
+    const b0 = Number.isFinite(opt.bearing) ? opt.bearing : rnd() * 360, ap = DF.autonomousPct / 100;
+    const force = opt.auto === 'yes' ? true : opt.auto === 'no' ? false : undefined;
+    const cnt = Number.isFinite(opt.count) && opt.count >= 1 ? clamp(Math.round(opt.count), 1, 20) : 0;
+    const tag = opt.tag ? opt.tag + ' ' : '';
+    let n = 0;
+    const mk = (bear, o) => {
+      const r = bear * DR, dir = [Math.sin(r), Math.cos(r)], perp = [dir[1], -dir[0]], lat = o.lat || 0;
+      const spawn = [C[0] + dir[0] * spawnR + perp[0] * lat, C[1] + dir[1] * spawnR + perp[1] * lat];
+      const tgt = assets[Math.floor(rnd() * assets.length)];
+      const auto = o.auto !== undefined ? o.auto : force !== undefined ? force : rnd() < ap;
+      n++;
+      return Object.assign({ name: tag + (o.decoy ? 'Yem-' : 'Tehdit-') + n, pos: spawn, path: [{ p: tgt }], wi: 0, z: 60, v: 15, auto, rf: !auto, start: 0, fixed: false,
+        decoy: false, main: !o.decoy, st: 'wait', holdLeft: 0, ang: 0, target: tgt, bearing: ((bear % 360) + 360) % 360,
+        det: { tFirst: null, dFirst: 0, warn: 0, types: new Set(), radarHits: 0, tConf: null, tCls: null, tEng: null }, fate: null, by: null, assigned: null, incursion: false }, o, { path: o.path ? o.path(tgt, dir) : [{ p: tgt }] });
+    };
+    const prof = {
+      direct: () => ({ z: U(rnd, 60, 110), v: U(rnd, 12, 18) }),
+      lowalt: () => ({ z: U(rnd, 15, 30), v: U(rnd, 10, 15) }),
+      fixedwing: () => ({ z: U(rnd, 80, 120), v: U(rnd, 25, 35), fixed: true }),
+    };
+    // tekil senaryolarda sayı artırılırsa dronlar aynı yönden, yanal aralıklı ve birkaç saniye arayla gelir
+    if (prof[id]) return Array.from({ length: cnt || 1 }, (_, i) => (i ? mk(b0 + U(rnd, -8, 8), Object.assign(prof[id](), { lat: U(rnd, -200, 200), start: U(rnd, 0, 8) })) : mk(b0, prof[id]())));
+    if (id === 'multi') { const k = cnt || 3; return Array.from({ length: k }, (_, i) => mk(b0 + i * 360 / k + U(rnd, -15, 15), { z: U(rnd, 50, 100), v: U(rnd, 12, 18) })); }
+    if (id === 'swarm') {
+      const k = cnt || 6 + Math.floor(rnd() * 5);
+      return Array.from({ length: k }, () => mk(b0 + U(rnd, -10, 10), { z: U(rnd, 40, 100), v: U(rnd, 12, 18), lat: U(rnd, -150, 150), start: U(rnd, 0, 10) }));
+    }
+    if (id === 'decoy') {
+      const dec = Array.from({ length: cnt || 2 }, () => mk(b0 + U(rnd, -8, 8), { z: U(rnd, 60, 100), v: U(rnd, 12, 16), decoy: true, auto: false, rf: true, main: false }));
+      const ma = force !== undefined ? force : true;
+      const main = mk(b0 + 180 + U(rnd, -30, 30), { z: U(rnd, 15, 30), v: U(rnd, 12, 15), auto: ma, rf: !ma, start: U(rnd, 60, 90) });
+      return dec.concat([main]);
+    }
+    if (id === 'loiter') {
+      return Array.from({ length: cnt || 1 }, (_, i) => mk(i ? b0 + U(rnd, -15, 15) : b0, { z: U(rnd, 60, 100), v: U(rnd, 10, 14), start: i ? U(rnd, 0, 20) : 0,
+        path: (tgt, dir) => [{ p: [C[0] + dir[0] * (reach + 300), C[1] + dir[1] * (reach + 300)], hold: 120 }, { p: tgt }] }));
+    }
+    return [];
+  }
+
+  // Kesişme noktasına göre yönlenme (öncül takip)
+  const aimAt = (from, vI, th) => {
+    const wp = th.st === 'hold' ? th.pos : th.path[th.wi].p;
+    const L = dist(th.pos, wp) || 1, vt = th.st === 'hold' ? [0, 0] : [(wp[0] - th.pos[0]) / L * th.v, (wp[1] - th.pos[1]) / L * th.v];
+    const rx = th.pos[0] - from[0], ry = th.pos[1] - from[1];
+    const a = vt[0] * vt[0] + vt[1] * vt[1] - vI * vI, b = 2 * (rx * vt[0] + ry * vt[1]), c = rx * rx + ry * ry;
+    let T = -1;
+    if (Math.abs(a) < 1e-6) T = b < 0 ? -c / b : -1;
+    else { const disc = b * b - 4 * a * c; if (disc >= 0) { const t1 = (-b - Math.sqrt(disc)) / (2 * a), t2 = (-b + Math.sqrt(disc)) / (2 * a); T = [t1, t2].filter((x) => x > 0).sort((p, q) => p - q)[0] ?? -1; } }
+    return T > 0 && T < 120 ? [th.pos[0] + vt[0] * T, th.pos[1] + vt[1] * T] : th.pos;
+  };
+  const stepTo = (pos, to, v) => { const d = dist(pos, to); if (d <= v) return to.slice(); return [pos[0] + (to[0] - pos[0]) / d * v, pos[1] + (to[1] - pos[1]) / d * v]; };
+  const remainingTime = (th) => {
+    let s = dist(th.pos, th.path[th.wi].p);
+    for (let i = th.wi + 1; i < th.path.length; i++) s += dist(th.path[i - 1].p, th.path[i].p);
+    let hold = th.st === 'hold' ? th.holdLeft : 0;
+    for (let i = th.wi; i < th.path.length; i++) if (i > th.wi || th.st !== 'hold') hold += th.path[i].hold || 0;
+    return s / th.v + hold;
+  };
+
+  // Her tehdidin kendi rastgele akışı vardır: sonradan eklenen saldırı, öncekinin geçmişini değiştirmez.
+  const threatRnd = (seed, k) => mulberry32(((seed >>> 0) ^ Math.imul(k + 1, 2654435761)) >>> 0);
+  function runAttack(id, seed, nInt, t0, record) {
+    const T = genThreats(id, mulberry32(seed));
+    T.forEach((th, k) => { th.rnd = threatRnd(seed, k); });
+    return runSim(T, nInt, t0, record, 900);
+  }
+  function runSim(T, nInt, t0, record, maxT) {
+    const ints = Array.from({ length: nInt }, (_, i) => ({ name: 'Önleyici-' + (i + 1), base: bases[i % bases.length], pos: bases[i % bases.length].slice(), st: 'ready', tgt: null, t1: 0, nextTry: 0, tries: 0, tl: record ? [] : null }));
+    const pats = (patrols || []).map((d) => ({ name: d.name, tl: d.timeline, div: null, pos: null, divStart: 0, loss: 0, home: null }));
+    const ev = [];
+    const log = (t, msg, lvl, who) => { if (record) ev.push({ t: t0 + t, msg, lvl: lvl || null, who: who || null }); };
+    const pushTh = (th, t, k) => { if (record) { th.tl = th.tl || []; th.tl.push({ t: t0 + t, x: th.pos[0], y: th.pos[1], z: k === 'down' || k === 'hit' ? 0 : th.z, k }); } };
+    const pushI = (it, t, z) => { if (it.tl) it.tl.push({ t: t0 + t, x: it.pos[0], y: it.pos[1], z }); };
+    const alive = (th) => th.st === 'move' || th.st === 'hold';
+    let tEnd = maxT;
+    for (let t = 0; t <= maxT; t++) {
+      // boş aralık: havada tehdit yoksa bir sonraki dalgaya (veya yeniden donanmaya) atla
+      if (!T.some(alive) && pats.every((p) => !p.div) && ints.every((it) => it.st === 'ready' || it.st === 'rearm')) {
+        const nx = Math.min(...T.filter((th) => th.st === 'wait').map((th) => th.start), ...ints.filter((it) => it.st === 'rearm').map((it) => it.t1));
+        if (Number.isFinite(nx) && nx > t + 1) { t = Math.min(maxT, Math.ceil(nx)) - 1; continue; }
+      }
+      // 1) tehdit hareketi
+      for (const th of T) {
+        if (th.st === 'wait' && t >= th.start) { th.st = 'move'; pushTh(th, t, 'move'); }
+        if (th.st === 'move') {
+          const wp = th.path[th.wi];
+          const np = stepTo(th.pos, wp.p, th.v);
+          th.pos = np;
+          if (dist(np, wp.p) < 0.5) {
+            if (wp.hold) { th.st = 'hold'; th.holdLeft = wp.hold; th.orbitC = wp.p.slice(); th.ang = 0; }
+            else if (th.wi === th.path.length - 1) { th.st = 'hit'; th.fate = 'hit'; pushTh(th, t, 'hit'); log(t, `SIZMA: ${th.name} korunan noktaya ulaştı${th.decoy ? ' (yem)' : ''}.`, 'crit', th.name); }
+            else th.wi++;
+          }
+        } else if (th.st === 'hold') {
+          th.ang += th.v / 80; th.pos = [th.orbitC[0] + 80 * Math.cos(th.ang), th.orbitC[1] + 80 * Math.sin(th.ang)];
+          if (--th.holdLeft <= 0) { th.st = 'move'; th.wi++; }
+        }
+        if (alive(th) && !th.incursion && pointInPoly(th.pos, poly)) { th.incursion = true; log(t, `ALAN İHLALİ: ${th.name} sınırı geçti.`, 'warn', th.name); }
+        if (alive(th) && t % 2 === 0) pushTh(th, t, th.st);
+      }
+      // 2) devriye konumları
+      for (const pt of pats) {
+        if (pt.div) {
+          const th = pt.div;
+          if (alive(th)) pt.pos = stepTo(pt.pos, th.pos, 16);
+          else { pt.loss += t - pt.divStart + (pt.home ? dist(pt.pos, pt.home) / 16 : 0); pt.div = null; pt.pos = null; }
+        } else pt.pos = patAt(pt.tl, t0 + t);
+      }
+      // 3) tespit
+      const radarLoad = sensors.map((s) => (s.type === 'radar' ? T.filter((th) => alive(th) && dist(s.p, th.pos) <= effR('radar', th.z, th.auto, th.fixed)).length : 0));
+      for (const th of T) {
+        if (!alive(th)) continue;
+        const dt = th.det;
+        const hit = (type) => {
+          if (dt.tFirst === null) {
+            dt.tFirst = t; dt.dFirst = dist(th.pos, th.target); dt.warn = remainingTime(th); dt.firstType = type;
+            log(t, `TESPİT: ${th.name} ${SENSOR_NAME[type]} ile, hedefe ${(dt.dFirst / 1000).toFixed(2)} km, ${Math.round(th.z)} m irtifa.`, 'warn', th.name);
+          }
+          if (type === 'radar') dt.radarHits++;
+          dt.types.add(type);
+        };
+        sensors.forEach((s, si) => {
+          const R = effR(s.type, th.z, th.auto, th.fixed), d = dist(s.p, th.pos);
+          if (!(d <= R)) return;
+          let p = SENSOR_P[s.type] * (d < 0.6 * R ? 1 : (R - d) / (0.4 * R));
+          if (s.type === 'radar' && radarLoad[si] > DF.radarTracks) p *= DF.radarTracks / radarLoad[si];
+          if (s.type === 'eo' && dt.tFirst === null) p *= 0.4; // ipucu yokken arama modunda
+          if (th.rnd() < p) hit(s.type);
+        });
+        for (const pt of pats) if (pt.pos && dist(pt.pos, th.pos) <= 400 && th.rnd() < SENSOR_P.patrol) hit('patrol');
+        if (dt.tFirst !== null && dt.tConf === null && (dt.types.size >= 2 || dt.radarHits >= 3 || dt.types.has('rf') || dt.types.has('eo') || dt.types.has('patrol'))) {
+          dt.tConf = t; log(t, `DOĞRULANDI: ${th.name} izi doğrulandı (${[...dt.types].map((x) => SENSOR_NAME[x]).join(', ')}).`, null, th.name);
+          if (DF.patrolAssist && !dt.types.has('eo') && !dt.types.has('patrol') && !dt.types.has('rf')) {
+            let bp = null, bd = Infinity;
+            for (const pt of pats) if (pt.pos && !pt.div) { const d = dist(pt.pos, th.pos); if (d < bd) { bd = d; bp = pt; } }
+            if (bp) { bp.div = th; bp.divStart = t; bp.home = bp.pos.slice(); log(t, `YÖNLENDİRME: ${bp.name} görsel tanımlama için ${th.name} izine gidiyor (${Math.round(bd)} m).`, null, bp.name); }
+          }
+        }
+        const canCls = dt.types.has('eo') || dt.types.has('patrol') || dt.types.has('rf');
+        if (dt.tCls === null && dt.tFirst !== null && (canCls || th.incursion)) {
+          dt.tCls = t; dt.tEng = t + DF.reactionSec;
+          log(t, `SINIFLANDIRILDI: ${th.name} düşman drone (${canCls ? 'görsel/RF imza' : 'alan ihlali kuralı'}); ${DF.reactionSec} sn karar süresi.`, 'warn', th.name);
+        }
+      }
+      // 4) etkisizleştirme: karıştırıcı (yalnız RF bağlantılı tehditlere)
+      if (t % 5 === 0 && jammers.length) for (const th of T) {
+        if (!alive(th) || th.det.tEng === null || t < th.det.tEng || th.auto) continue;
+        if (jammers.some((j) => dist(j.p, th.pos) <= effR('jammer', th.z, th.auto, th.fixed)) && th.rnd() < DF.pkJam) {
+          th.st = 'down'; th.fate = 'down'; th.by = 'jammer'; pushTh(th, t, 'down');
+          log(t, `ETKİSİZ: ${th.name} RF karıştırma ile bağlantısını kaybetti, iniş yaptı.`, 'ok', th.name);
+        }
+      }
+      // 5) önleyici dronlar (ağ ile yakalama)
+      for (const it of ints) {
+        if (it.st === 'ready') {
+          const cand = T.filter((th) => alive(th) && th.det.tEng !== null && t >= th.det.tEng && !th.assigned).sort((a, b) => remainingTime(a) - remainingTime(b))[0];
+          if (cand) { it.st = 'launch'; it.tgt = cand; cand.assigned = it; it.t1 = t + 10; it.tries = 0; pushI(it, t, 0); log(t, `ÖNLEME: ${it.name} ${cand.name} için kalkıyor.`, null, it.name); }
+        } else if (it.st === 'launch') { if (t >= it.t1) { it.st = 'chase'; pushI(it, t, 40); } }
+        else if (it.st === 'chase') {
+          const th = it.tgt;
+          if (!alive(th)) { it.st = 'back'; th.assigned = null; }
+          else {
+            it.pos = stepTo(it.pos, aimAt(it.pos, DF.interceptorMs, th), DF.interceptorMs);
+            if (t % 2 === 0) pushI(it, t, th.z);
+            if (dist(it.pos, th.pos) <= 20 && t >= it.nextTry) {
+              it.tries++;
+              if (th.rnd() < DF.pkNet) { th.st = 'down'; th.fate = 'down'; th.by = 'net'; pushTh(th, t, 'down'); it.st = 'back'; log(t, `ETKİSİZ: ${it.name} ${th.name} hedefini ağla yakaladı.`, 'ok', it.name); }
+              else if (it.tries >= 3) { it.st = 'back'; th.assigned = null; log(t, `ÖNLEME BAŞARISIZ: ${it.name} üç denemede yakalayamadı, dönüyor.`, 'warn', it.name); }
+              else it.nextTry = t + 8;
+            }
+          }
+        } else if (it.st === 'back') {
+          it.pos = stepTo(it.pos, it.base, DF.interceptorMs);
+          if (t % 2 === 0) pushI(it, t, 40);
+          if (dist(it.pos, it.base) < 1) { it.st = 'rearm'; it.t1 = t + 120; pushI(it, t, 0); }
+        } else if (it.st === 'rearm' && t >= it.t1) it.st = 'ready';
+      }
+      if (T.every((th) => th.st === 'down' || th.st === 'hit') && ints.every((it) => it.st === 'ready' || it.st === 'rearm')) { tEnd = t; break; }
+    }
+    for (const pt of pats) if (pt.div) pt.loss += tEnd - pt.divStart;
+    return { T, ints, ev, patrolLoss: pats.reduce((a, p) => a + p.loss, 0), tEnd };
+  }
+    return { genThreats, runAttack, runSim, threatRnd };
+  }
+
+  const ATTACK_LIMITS = { attacks: 20, waves: 8, threats: 150, delay: 1800 };
+  /* İsteğe bağlı saldırılar: planlanan veya rastgele saldırılar tek benzetimde, ortak sensör ve önleyicilerle */
+  function simulateAttacks(G, attacks, patrols) {
+    const core = defenseCore(G, patrols || []);
+    const toLL = G.origin ? projector(G.origin[0], G.origin[1]).toLL : (p) => p;
+    const ids = (G.scIds && G.scIds.length ? G.scIds : Object.keys(THREAT_SCENARIOS)).filter((k) => THREAT_SCENARIOS[k]);
+    const list = (attacks || []).filter((a) => a && Array.isArray(a.waves) && a.waves.length).slice(0, ATTACK_LIMITS.attacks);
+    if (!list.length) return { t0: 0, tEnd: 0, threats: [], interceptors: [], events: [], attacks: [] };
+    const tOf = (a) => Math.max(0, Number(a.t0) || 0);
+    const tmin = Math.min(...list.map(tOf));
+    const T = [];
+    list.forEach((a, ai) => {
+      const seed = (Number(a.seed) >>> 0) || (ai + 1) * 7919;
+      const rnd = mulberry32(seed);
+      let k = 0;
+      a.waves.slice(0, ATTACK_LIMITS.waves).forEach((w, wi) => {
+        const id = THREAT_SCENARIOS[w.scenario] ? w.scenario : ids[Math.floor(rnd() * ids.length)];
+        const bv = w.bearing === null || w.bearing === undefined || w.bearing === '' ? NaN : Number(w.bearing);
+        const cv = w.count === null || w.count === undefined || w.count === '' ? NaN : Number(w.count);
+        const ths = core.genThreats(id, rnd, { bearing: Number.isFinite(bv) ? ((bv % 360) + 360) % 360 : undefined, count: cv, auto: w.auto, tag: a.tag || 'S' + (ai + 1) });
+        const st = tOf(a) - tmin + clamp(Number(w.delaySec) || 0, 0, ATTACK_LIMITS.delay);
+        ths.forEach((th) => {
+          if (T.length >= ATTACK_LIMITS.threats) return;
+          th.start += st; th.attack = ai; th.wave = wi; th.scenario = id; th.rnd = core.threatRnd(seed, k++);
+          // farklı dalgalarda aynı ad olmasın
+          if (wi) th.name = th.name.replace(/(Tehdit|Yem)-/, `$1-${wi + 1}.`);
+          T.push(th);
+        });
+      });
+    });
+    const maxT = Math.max(...T.map((th) => th.start)) + 900;
+    const res = core.runSim(T, G.DF.interceptors, tmin, true, maxT);
+    const tlLL = (tl) => (tl || []).map((s) => Object.assign(s, { ll: toLL([s.x, s.y]) }));
+    const sum = list.map((a, ai) => {
+      const th = res.T.filter((x) => x.attack === ai), det = th.filter((x) => x.det.tFirst !== null);
+      const neutral = th.filter((x) => x.fate === 'down').length, leak = th.filter((x) => x.fate === 'hit').length;
+      return { tag: a.tag || 'S' + (ai + 1), t0: tOf(a), threats: th.length, detected: det.length, neutral, leak, other: th.length - neutral - leak,
+        warnSec: det.length ? det.reduce((s, x) => s + x.det.warn, 0) / det.length : 0,
+        firstDetectSec: det.length ? Math.min(...det.map((x) => tmin + x.det.tFirst)) - tOf(a) : null,
+        scenarios: [...new Set(th.map((x) => x.scenario))] };
+    });
+    return {
+      t0: tmin, tEnd: tmin + res.tEnd, attacks: sum,
+      threats: res.T.filter((th) => th.tl && th.tl.length).map((th) => ({ name: th.name, attack: th.attack, wave: th.wave, scenario: th.scenario, bearing: th.bearing,
+        decoy: th.decoy, auto: th.auto, fixed: th.fixed, fate: th.fate, by: th.by, timeline: tlLL(th.tl) })),
+      interceptors: res.ints.filter((it) => it.tl.length).map((it) => ({ name: it.name, timeline: tlLL(it.tl) })),
+      events: res.ev.sort((p, q) => p.t - q.t),
+    };
+  }
+  /* Rastgele saldırı: seçili senaryolardan 1-3 dalga, birbirinden en az 60° ayrık yönlerden */
+  function randomAttack(seed, scIds) {
+    const rnd = mulberry32((Number(seed) >>> 0) || 1);
+    const ids = (scIds || []).filter((k) => THREAT_SCENARIOS[k]);
+    const pool = ids.length ? ids : Object.keys(THREAT_SCENARIOS);
+    const n = 1 + Math.floor(rnd() * 3), b0 = rnd() * 360;
+    const waves = Array.from({ length: n }, (_, i) => ({
+      scenario: pool[Math.floor(rnd() * pool.length)],
+      bearing: Math.round((((b0 + i * 360 / n + (rnd() - 0.5) * 50) % 360) + 360) % 360),
+      count: null, delaySec: i ? Math.round(rnd() * 45) : 0, auto: 'mix' }));
+    return { seed: (Number(seed) >>> 0) || 1, waves };
+  }
+
+  function planDefense(Gm, din) {
+    const DF = Object.assign({}, DEF_DEFAULTS, din || {});
+    ['radars', 'rfs', 'eos', 'acoustics', 'jammers', 'interceptors'].forEach((k) => { DF[k] = clamp(Math.round(DF[k] || 0), 0, 12); });
+    DF.runs = clamp(Math.round(DF.runs || 1), 1, 200);
+    const scIds = (DF.scenarios || []).filter((s) => THREAT_SCENARIOS[s]);
+    const { poly, cands, stations, repDrones, assets, horizon, ll } = Gm;
+    const C = centroid(poly);
+    const reach = Math.max(...poly.map((p) => dist(p, C)));
+    const spawnR = reach + 2500;
+    const DR = D;
+    const effR = defEffR(DF);
+    // Yaklaşma doğrusu (merkeze giden) üzerinde sensör menziline ilk giriş mesafesi (merkezden)
+    const entry = (S, R, dir) => {
+      if (!(R > 0)) return 0;
+      const fx = C[0] - S[0], fy = C[1] - S[1];
+      const b = 2 * (dir[0] * fx + dir[1] * fy), c = fx * fx + fy * fy - R * R, disc = b * b - 4 * c;
+      if (disc < 0) return 0;
+      const s2 = (-b + Math.sqrt(disc)) / 2;
+      return s2 < 0 ? 0 : Math.min(spawnR, s2);
+    };
+    const BEAR = Array.from({ length: 36 }, (_, i) => i * 10);
+    const dirs = BEAR.map((b) => [Math.sin(b * DR), Math.cos(b * DR)]);
+    const PROFILES = [{ alt: 80, auto: false }, { alt: 25, auto: false }, { alt: 80, auto: true }];
+
+    // Sensör yerleşimi: 36 yön × 3 tehdit profili için erken uyarı mesafesini büyüten açgözlü seçim
+    const sites = cands.length ? cands : [C];
+    const tableFor = (type, profs) => sites.map((s) => profs.map((pf) => dirs.map((dv) => entry(s, effR(type, pf.alt, pf.auto, false), dv))));
+    const placeGreedy = (plan, profs) => {
+      const best = profs.map(() => new Array(36).fill(0));
+      const tables = {};
+      const chosen = [];
+      plan.forEach((type) => {
+        const tb = tables[type] || (tables[type] = tableFor(type, profs));
+        let bi = -1, bs = -Infinity;
+        for (let ci = 0; ci < sites.length; ci++) {
+          if (chosen.some((x) => x.ci === ci && x.type === type)) continue;
+          let sum = 0, mn = Infinity;
+          for (let q = 0; q < profs.length; q++) for (let k = 0; k < 36; k++) { const v = Math.max(best[q][k], tb[ci][q][k]); sum += v; if (v < mn) mn = v; }
+          // aynı türün aynı noktaya yığılmaması için küçük ayrışma ödülü
+          const sep = chosen.length ? Math.min(...chosen.map((x) => dist(sites[x.ci], sites[ci]))) : 0;
+          const sc = sum / (profs.length * 36 * spawnR) + 0.5 * mn / spawnR + 0.02 * Math.min(1, sep / 300);
+          if (sc > bs) { bs = sc; bi = ci; }
+        }
+        if (bi < 0) return;
+        chosen.push({ ci: bi, type });
+        for (let q = 0; q < profs.length; q++) for (let k = 0; k < 36; k++) best[q][k] = Math.max(best[q][k], tb[bi][q][k]);
+      });
+      return chosen.map((x) => ({ type: x.type, p: sites[x.ci] }));
+    };
+    const plan = [].concat(Array(DF.radars).fill('radar'), Array(DF.rfs).fill('rf'), Array(DF.eos).fill('eo'), Array(DF.acoustics).fill('acoustic'));
+    const sensors = placeGreedy(plan, PROFILES);
+    const jammers = placeGreedy(Array(DF.jammers).fill('jammer'), [{ alt: 80, auto: false }, { alt: 25, auto: false }]);
+    const bases = stations.length ? stations : [C];
+
+    // Kör sektör analizi: her yön için tespit (erken uyarı) mesafesi
+    const sectors = BEAR.map((b, k) => {
+      const at = (alt, auto) => sensors.reduce((m, s) => Math.max(m, entry(s.p, effR(s.type, alt, auto, false), dirs[k])), 0);
+      return { bearing: b, mid: at(80, false), low: at(25, false), lowAuto: at(25, true) };
+    });
+
+    const geo = { DF, poly, C, reach, spawnR, origin: Gm.origin || null, scIds,
+      sensors: sensors.map((s) => ({ type: s.type, p: s.p })), jammers: jammers.map((s) => ({ type: s.type, p: s.p })), bases, assets };
+    const { runAttack } = defenseCore(geo, repDrones);
+
+    // Monte Carlo: her senaryo için tekrarlanan rastgele saldırılar
+    const agg = (id, nInt, runs, salt) => {
+      const st = { threats: 0, det: 0, dist: 0, warn: 0, neut: 0, leak: 0, resp: 0, respN: 0, noLeak: 0, loss: 0, net: 0, jam: 0, mainN: 0, mainLeak: 0, inc: 0, autoN: 0, autoLeak: 0, seen: { radar: 0, rf: 0, eo: 0, acoustic: 0, patrol: 0 }, first: { radar: 0, rf: 0, eo: 0, acoustic: 0, patrol: 0 } };
+      for (let r = 0; r < runs; r++) {
+        const res = runAttack(id, (DF.seed * 7919 + salt * 104729 + r * 15485863) >>> 0, nInt, 0, false);
+        let leaks = 0;
+        res.T.forEach((th) => {
+          st.threats++;
+          if (th.det.tFirst !== null) { st.det++; st.dist += th.det.dFirst; st.warn += th.det.warn; st.first[th.det.firstType]++; }
+          th.det.types.forEach((ty) => { st.seen[ty]++; });
+          if (th.det.tEng !== null) { st.resp += th.det.tEng - th.det.tFirst; st.respN++; }
+          if (th.fate === 'down') { st.neut++; if (th.by === 'net') st.net++; else st.jam++; }
+          if (th.fate === 'hit') { st.leak++; leaks++; }
+          if (th.incursion) st.inc++;
+          if (th.main) { st.mainN++; if (th.fate === 'hit') st.mainLeak++; }
+          if (th.auto) { st.autoN++; if (th.fate === 'hit') st.autoLeak++; }
+        });
+        if (!leaks) st.noLeak++;
+        st.loss += res.patrolLoss;
+      }
+      return {
+        detectRate: st.det / st.threats, detectDistM: st.det ? st.dist / st.det : 0, warnSec: st.det ? st.warn / st.det : 0,
+        neutralRate: st.neut / st.threats, leakRate: st.leak / st.threats, noLeakRate: st.noLeak / runs, respSec: st.respN ? st.resp / st.respN : 0,
+        patrolLossSec: st.loss / runs, incursionRate: st.inc / st.threats, mainLeakRate: st.mainN ? st.mainLeak / st.mainN : 0,
+        autoLeakRate: st.autoN ? st.autoLeak / st.autoN : 0, autoPerRun: st.autoN / runs, byEffector: { net: st.net, jammer: st.jam }, threatsPerRun: st.threats / runs,
+        seenBy: Object.fromEntries(Object.entries(st.seen).map(([k, v]) => [k, v / st.threats])), firstBy: Object.fromEntries(Object.entries(st.first).map(([k, v]) => [k, st.det ? v / st.det : 0])),
+      };
+    };
+    const scenarios = scIds.map((id, i) => {
+      const a = agg(id, DF.interceptors, DF.runs, i + 1);
+      const t0 = Math.round(horizon * (i + 1) / (scIds.length + 1) / 60) * 60;
+      const rep = runAttack(id, (DF.seed * 31 + i * 977) >>> 0, DF.interceptors, t0, true);
+      const tlLL = (tl) => (tl || []).map((s) => Object.assign(s, { ll: ll([s.x, s.y]) }));
+      return Object.assign({ id, name: THREAT_SCENARIOS[id].name, desc: THREAT_SCENARIOS[id].desc }, a, {
+        rep: { t0, tEnd: t0 + rep.tEnd,
+          threats: rep.T.map((th) => ({ name: th.name, decoy: th.decoy, auto: th.auto, fixed: th.fixed, fate: th.fate, by: th.by, timeline: tlLL(th.tl) })),
+          interceptors: rep.ints.filter((it) => it.tl.length).map((it) => ({ name: it.name, timeline: tlLL(it.tl) })),
+          events: rep.ev.sort((p, q) => p.t - q.t) },
+      });
+    });
+    // Duyarlılık: önleyici sayısına göre genel sızma oranı
+    const sensitivity = [];
+    const sRuns = Math.max(3, Math.round(DF.runs / 3));
+    for (let ni = 0; ni <= Math.min(12, DF.interceptors + 4); ni++) {
+      let leak = 0, th = 0;
+      scIds.forEach((id, i) => { const a = agg(id, ni, sRuns, 100 + i); leak += a.leakRate * a.threatsPerRun; th += a.threatsPerRun; });
+      sensitivity.push({ interceptors: ni, leakRate: th ? leak / th : 0 });
+    }
+    const okN = sensitivity.find((s) => s.leakRate <= 0.05);
+    const recN = (okN || sensitivity[sensitivity.length - 1]).interceptors;
+
+    // Öneriler
+    const advice = [];
+    const g = (id) => scenarios.find((s) => s.id === id);
+    if (g('lowalt') && (g('lowalt').detectRate < 0.9 || g('lowalt').warnSec < 60)) advice.push(`Alçak irtifa tehdidi geç fark ediliyor (ortalama ${Math.round(g('lowalt').warnSec)} sn önceden). Radar yer yansımasında menzil kaybediyor; sınıra yakın EO/IR kamera veya akustik sensör ekleyin.`);
+    const autoN = scenarios.reduce((a, s) => a + s.autoPerRun, 0);
+    const autoLeak = autoN ? scenarios.reduce((a, s) => a + s.autoLeakRate * s.autoPerRun, 0) / autoN : 0;
+    if (autoLeak > 0.15) advice.push(`Otonom (radyo yaymayan) tehditlerin ortalama %${Math.round(autoLeak * 100)} kadarı sızıyor. RF dedektör ve karıştırıcı bunlara etkisiz; radar kapsamını ve önleyici drone sayısını artırın.`);
+    if (g('swarm') && g('swarm').leakRate > 0.1) advice.push(`Sürü saldırısında tehditlerin %${Math.round(g('swarm').leakRate * 100)} kadarı sızıyor. Önleyici sayısı sürü büyüklüğünün altında; ${okN ? `duyarlılık tablosuna göre en az ${recN} önleyici önerilir` : `${recN} önleyiciyle bile genel sızma %${Math.round(sensitivity[sensitivity.length - 1].leakRate * 100)}; önleyicinin yanında erken tespit ve ikinci bir etkisizleştirme katmanı gerekir`}.`);
+    if (g('decoy') && g('direct') && g('decoy').mainLeakRate > g('direct').leakRate + 0.1) advice.push('Yem taktiği etkili: önleyiciler yem dronlara bağlanınca asıl tehdit sızıyor. Önleyicilerin bir kısmını yedekte tutun ve karşı sektörü gözetleyin.');
+    if (g('fixedwing') && g('fixedwing').leakRate > 0.2) advice.push(`Hızlı sabit kanatta erken uyarı süresi ortalama ${Math.round(g('fixedwing').warnSec)} sn. Radarı sınıra yaklaştırın veya karar süresini kısaltın.`);
+    const weak = sectors.slice().sort((a, b) => a.low - b.low).slice(0, 3);
+    if (weak.length && weak[0].low < reach + 300) advice.push(`En zayıf yaklaşma yönleri (alçak irtifa): ${weak.map((w) => `${w.bearing}°`).join(', ')}. Bu yönlere sensör kaydırın.`);
+    if (!advice.length) advice.push('Seçilen senaryolarda tespit ve önleme kapasitesi yeterli görünüyor.');
+
+    const totalThreats = scenarios.reduce((a, s) => a + s.threatsPerRun, 0) || 1;
+    const w = (f) => scenarios.reduce((a, s) => a + f(s) * s.threatsPerRun, 0) / totalThreats;
+    return {
+      params: DF, spawnM: spawnR, centerLL: ll(C),
+      sensors: sensors.map((s) => ({ type: s.type, ll: ll(s.p), rangeM: effR(s.type, 80, false, false) })),
+      jammers: jammers.map((s) => ({ type: 'jammer', ll: ll(s.p), rangeM: effR('jammer', 80, false, false) })),
+      geo, bases: bases.map(ll), sectors, scenarios, sensitivity, recommendedInterceptors: recN, recommendedOk: !!okN, advice,
+      overall: { detectRate: w((s) => s.detectRate), neutralRate: w((s) => s.neutralRate), leakRate: w((s) => s.leakRate), warnSec: w((s) => s.warnSec) },
+    };
+  }
+
   function planSecurity(input) {
     const warnings = [];
     const warn = (level, msg) => warnings.push({ level, msg });
@@ -2066,6 +2590,20 @@ const Engine = (() => {
         wps: [{ p: st, z: 0 }, { p: st, z: c.alt }, ...R.route.map((p) => ({ p, z: c.alt, cap: true })), { p: st, z: c.alt }, { p: st, z: 0 }]
           .map((w) => ({ ll: ll(w.p), z: w.z, cap: !!w.cap, laneStart: false, hover: 0 })) };
     });
+    // Dış drone tehdidi: tespit ve önleme benzetimi (isteğe bağlı)
+    let defense;
+    if (input.defense && input.defense.enabled) {
+      const poisIn = (input.pois || []).map(pj.toXY).filter((q) => pointInPoly(q, poly));
+      defense = planDefense({ poly, cands, stations: chosen.cfg.sites, repair: chosen.cfg.repair,
+        repDrones: rep.drones.map((r, q) => ({ name: base[q].name, timeline: r.timeline })),
+        assets: [...chosen.cfg.sites, chosen.cfg.repair, centroid(poly), ...poisIn], horizon, ll, origin }, input.defense);
+      const o = defense.overall;
+      const last = defense.sensitivity[defense.sensitivity.length - 1];
+      const recTxt = defense.recommendedOk ? `Sızmayı %5 altına indirmek için önerilen önleyici sayısı: ${defense.recommendedInterceptors}.` : `${last.interceptors} önleyiciyle bile sızma %${Math.round(last.leakRate * 100)}; önleyicinin yanında daha erken tespit ve ikinci bir etkisizleştirme katmanı gerekir.`;
+      if (o.leakRate > 0.1) warn('crit', `Dış drone saldırılarında tehditlerin %${Math.round(o.leakRate * 100)} kadarı korunan noktaya ulaşıyor. ${recTxt}`);
+      else if (o.leakRate > 0.03) warn('warn', `Dış drone saldırılarında sızma oranı %${Math.round(o.leakRate * 100)}.`);
+      if (o.detectRate < 0.9) warn('warn', `Dış tehditlerin yalnız %${Math.round(o.detectRate * 100)} kadarı tespit ediliyor; sensör ekleyin veya yerlerini değiştirin.`);
+    }
     const day = 86400 / horizon;
     const elecWh = base.filter((x) => !x.fuel).reduce((a, x, q) => a + rep.drones[base.indexOf(x)].energyWh, 0) * day;
     const fuelWh = base.filter((x) => x.fuel).reduce((a, x) => a + rep.drones[base.indexOf(x)].energyWh, 0) * day;
@@ -2074,7 +2612,7 @@ const Engine = (() => {
     const dailyElecTL = elecWh / 1000 / (costs.chargerEff / 100) * costs.elecPrice, dailyFuelTL = dailyFuelL * costs.fuelPrice;
     const dailyWearTL = batCycles * costs.batteryPrice / Math.max(1, costs.batteryCycles);
     return {
-      mode: 'security', origin, windowSec: horizon, minAlt, activeParcel: pIdx,
+      mode: 'security', origin, windowSec: horizon, minAlt, activeParcel: pIdx, defense,
       parcel: { name: P0.name || 'Güvenlik alanı', areaHa: areaM2 / 1e4, perimM: perimeter(poly) },
       route: R.route.map(ll), routeLenM: R.L, rings: R.rings, loopSec: R.L / vSlot, vSlot, k, reserve: sp.reserve,
       revisitSec: R.L / vSlot / k,
@@ -2108,14 +2646,19 @@ const Engine = (() => {
     return { areaHa: Math.abs(signedArea(poly)) / 1e4, perimM: perimeter(poly) };
   }
 
-  return { PRESETS, BASE, airDensity, power, hoverPower, characteristicSpeeds, altitudeForGsd, groundSpeed, lanesInBand, splitBands, tour, plan, planMission, planSecurity, SEC_DEFAULTS, polygonStats, projector };
+  return { PRESETS, BASE, airDensity, power, hoverPower, characteristicSpeeds, altitudeForGsd, groundSpeed, lanesInBand, splitBands, tour, plan, planMission, planSecurity, SEC_DEFAULTS, DEF_DEFAULTS, THREAT_SCENARIOS, simulateAttacks, randomAttack, polygonStats, projector };
 })();
 if (typeof module !== 'undefined') module.exports = Engine;
 if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof importScripts === 'function') {
   // Web Worker: plan isteklerini arka planda hesaplar, arayüz donmaz.
   self.onmessage = (e) => {
-    const { id, input } = e.data || {};
+    const { id, input, kind } = e.data || {};
     let result;
+    if (kind === 'attack') {
+      try { result = Engine.simulateAttacks(input.geo, input.attacks, input.patrols); } catch (err) { result = { error: 'Saldırı benzetilemedi: ' + err.message }; }
+      self.postMessage({ id, kind, result });
+      return;
+    }
     try { result = Engine.planMission(input); } catch (err) { result = { error: 'Plan hesaplanamadı: ' + err.message }; }
     self.postMessage({ id, result });
   };
@@ -2235,6 +2778,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   // Varsayılan alan: Ataköy Konakları ile Hava Harp Okulu arası, Ayamama kanalı ve sahil (Bakırköy, İstanbul)
   const ATAKOY = [[40.97689, 28.84113], [40.9774, 28.84799], [40.97575, 28.85184], [40.97367, 28.85074], [40.97201, 28.84909],
     [40.96911, 28.84689], [40.96673, 28.8458], [40.96673, 28.83975], [40.97098, 28.84058]];
+  const newWave = () => ({ scenario: 'random', bearing: null, count: null, delaySec: 0, auto: 'mix' });
   function defaults() {
     const d = [newDrone('kompakt', 'Kartal-1'), newDrone('kompakt', 'Kartal-2'), newDrone('kompakt', 'Kartal-3'), newDrone('kompakt', 'Kartal-4'),
       newDrone('devriye', 'Doğan-1'), newDrone('devriye', 'Doğan-2')];
@@ -2250,7 +2794,9 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
         layering: true, layerSep: 10, clearance: 15, maxAlt: 120, viewGsdCm: 5, reservePct: 25, swapMin: 4, inspectSec: 15, opsHours: 6, repeatMin: 30,
         selection: 'auto', continuous: true },
       security: Object.assign({}, Engine.SEC_DEFAULTS),
+      defense: Object.assign({}, Engine.DEF_DEFAULTS, { enabled: true, runs: 20 }),
       costs: { elecPrice: 3.2, chargerEff: 85, fuelPrice: 52, batteryPrice: 9500, batteryCycles: 300 },
+      attackDraft: { when: 'now', at: '', waves: [newWave()] }, attacks: [], attackNo: 0,
       baseLayer: 'sat',
     };
   }
@@ -2266,6 +2812,30 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     { k: 'mttrH', l: 'Ortalama tamir süresi', u: 'saat', min: 0.1, max: 72, step: 0.1 },
     { k: 'critPct', l: 'Kritik arıza payı', u: '%', min: 0, max: 100, step: 5, h: 'Kritik arızada acil iniş ve araçla kurtarma; hafif arızada drone uçarak tamire gider.' },
     { k: 'groundKmh', l: 'Kurtarma aracı hızı', u: 'km/sa', min: 5, max: 90, step: 1 },
+  ];
+  const DEF_SENS_FIELDS = [
+    { k: 'radars', l: 'Radar', u: 'adet', min: 0, max: 6, step: 1 },
+    { k: 'rfs', l: 'RF dedektör', u: 'adet', min: 0, max: 6, step: 1 },
+    { k: 'eos', l: 'EO/IR kamera', u: 'adet', min: 0, max: 8, step: 1 },
+    { k: 'acoustics', l: 'Akustik sensör', u: 'adet', min: 0, max: 12, step: 1 },
+  ];
+  const DEF_EFF_FIELDS = [
+    { k: 'interceptors', l: 'Önleyici drone (ağlı)', u: 'adet', min: 0, max: 12, step: 1 },
+    { k: 'jammers', l: 'RF karıştırıcı', u: 'adet', min: 0, max: 4, step: 1 },
+    { k: 'pkNet', l: 'Ağla yakalama başarısı', u: 'olasılık', min: 0.05, max: 1, step: 0.05 },
+    { k: 'pkJam', l: 'Karıştırma başarısı', u: 'olasılık', min: 0.05, max: 1, step: 0.05 },
+    { k: 'interceptorMs', l: 'Önleyici hızı', u: 'm/s', min: 5, max: 60, step: 1 },
+    { k: 'reactionSec', l: 'Karar süresi', u: 'sn', min: 0, max: 120, step: 1, h: 'Sınıflandırmadan müdahale iznine kadar geçen süre (angajman kuralı).' },
+  ];
+  const DEF_ASM_FIELDS = [
+    { k: 'radarKm', l: 'Radar menzili (küçük drone)', u: 'km', min: 0.2, max: 20, step: 0.1 },
+    { k: 'rfKm', l: 'RF dedektör menzili', u: 'km', min: 0.2, max: 20, step: 0.1 },
+    { k: 'eoKm', l: 'EO/IR menzili', u: 'km', min: 0.1, max: 5, step: 0.1 },
+    { k: 'acousticM', l: 'Akustik menzil', u: 'm', min: 50, max: 1000, step: 10 },
+    { k: 'jamKm', l: 'Karıştırıcı menzili', u: 'km', min: 0.1, max: 5, step: 0.1 },
+    { k: 'radarTracks', l: 'Radar iz kapasitesi', u: 'hedef', min: 1, max: 50, step: 1 },
+    { k: 'autonomousPct', l: 'Otonom tehdit payı', u: '%', min: 0, max: 100, step: 5, h: 'Radyo yaymayan (önceden programlı) dronlar; RF dedektör ve karıştırıcı bunlara etkisizdir.' },
+    { k: 'runs', l: 'Senaryo başına deneme', u: 'adet', min: 1, max: 200, step: 1 },
   ];
   const SEC_SIM_FIELDS = [
     { k: 'hours', l: 'Benzetim süresi', u: 'saat', min: 1, max: 72, step: 1 },
@@ -2313,6 +2883,12 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     pull(raw.env, d.env, ENV_FIELDS);
     pull(raw.costs, d.costs, COST_FIELDS);
     pull(raw.security, d.security, [...SEC_FIELDS, ...SEC_FAIL_FIELDS, ...SEC_SIM_FIELDS]);
+    if (raw.defense && typeof raw.defense === 'object') {
+      pull(raw.defense, d.defense, [...DEF_SENS_FIELDS, ...DEF_EFF_FIELDS, ...DEF_ASM_FIELDS, { k: 'seed', min: 1, max: 99999 }]);
+      d.defense.enabled = raw.defense.enabled !== false;
+      d.defense.patrolAssist = raw.defense.patrolAssist !== false;
+      if (Array.isArray(raw.defense.scenarios)) d.defense.scenarios = raw.defense.scenarios.filter((x) => Engine.THREAT_SCENARIOS[x]);
+    }
     pull(raw.mission, d.mission, [...MISSION_FIELDS, ...OPS_FIELDS, { k: 'weight', min: 0, max: 100 }, { k: 'angle', min: 0, max: 179 }]);
     if (raw.mission) {
       if (['security', 'coverage', 'perimeter', 'poi'].includes(raw.mission.mode)) d.mission.mode = raw.mission.mode;
@@ -2321,6 +2897,21 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       d.mission.selection = raw.mission.selection === 'manual' ? 'manual' : 'auto';
       d.mission.continuous = raw.mission.continuous !== false;
     }
+    // saldırı taslağı ve planlanan saldırılar
+    const optNum = (v, f) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Math.round(num(v, f, f.min)));
+    const cleanWave = (w) => ({ scenario: w && Engine.THREAT_SCENARIOS[w.scenario] ? w.scenario : 'random',
+      bearing: optNum(w && w.bearing, { min: 0, max: 359 }), count: optNum(w && w.count, { min: 1, max: 20 }),
+      delaySec: Math.round(num(w && w.delaySec, { min: 0, max: 1800 }, 0)), auto: w && ['mix', 'yes', 'no'].includes(w.auto) ? w.auto : 'mix' });
+    const wavesOf = (a) => (a && Array.isArray(a.waves) ? a.waves.slice(0, 8).filter((w) => w && typeof w === 'object').map(cleanWave) : []);
+    if (raw.attackDraft && typeof raw.attackDraft === 'object') {
+      const ws = wavesOf(raw.attackDraft);
+      d.attackDraft = { when: raw.attackDraft.when === 'at' ? 'at' : 'now', at: typeof raw.attackDraft.at === 'string' ? raw.attackDraft.at.slice(0, 8).replace(/[^0-9:]/g, '') : '', waves: ws.length ? ws : [newWave()] };
+    }
+    if (Array.isArray(raw.attacks)) {
+      d.attacks = raw.attacks.slice(0, 20).map((a) => ({ tag: a && /^S\d{1,6}$/.test(a.tag) ? a.tag : 'S?', t0: Math.round(num(a && a.t0, { min: 0, max: 72 * 3600 }, 0)),
+        seed: Math.round(num(a && a.seed, { min: 1, max: 1e9 }, 1)), waves: wavesOf(a) })).filter((a) => a.waves.length);
+    }
+    d.attackNo = Math.round(num(raw.attackNo, { min: 0, max: 1e6 }, d.attacks.length));
     d.baseLayer = raw.baseLayer === 'osm' ? 'osm' : 'sat';
     return d;
   }
@@ -2395,7 +2986,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   $('#baseLayer').addEventListener('change', (e) => { setBase(e.target.value === 'osm' ? 'osm' : 'sat'); save(); });
 
   const gParcel = L.layerGroup().addTo(map), gVerts = L.layerGroup().addTo(map), gRoutes = L.layerGroup().addTo(map),
-    gMarks = L.layerGroup().addTo(map), gSim = L.layerGroup().addTo(map), gDraw = L.layerGroup().addTo(map);
+    gMarks = L.layerGroup().addTo(map), gSim = L.layerGroup().addTo(map), gDraw = L.layerGroup().addTo(map), gAtk = L.layerGroup().addTo(map);
   const divIcon = (html, size, anchor) => L.divIcon({ html, className: '', iconSize: size, iconAnchor: anchor || [size[0] / 2, size[1] / 2] });
   const polyStyle = (i) => ({ color: '#f2c14e', weight: i === S.active ? 3 : 1.8, fillColor: '#f2c14e', fillOpacity: i === S.active ? 0.1 : 0.05, dashArray: i === S.active ? null : '6 5' });
 
@@ -2449,7 +3040,21 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     });
     L.marker(R.repair.ll, { icon: divIcon('<div class="pin-rep"><i class="ph-fill ph-wrench"></i></div>', [30, 30]), title: 'Tamir istasyonu', alt: 'Tamir istasyonu', zIndexOffset: 960 })
       .bindTooltip('Tamir istasyonu', { direction: 'top', offset: [0, -14] }).addTo(gRoutes);
+    if (R.defense) {
+      // tespit ve önleme katmanı: sensörler ve menzil halkaları
+      const cnt = {};
+      R.defense.sensors.concat(R.defense.jammers).forEach((s) => {
+        cnt[s.type] = (cnt[s.type] || 0) + 1;
+        const col = SENS_COLOR[s.type], label = `${SENS_LABEL[s.type]} ${cnt[s.type]}`;
+        L.circle(s.ll, { radius: s.rangeM, color: col, weight: 1.2, opacity: 0.75, dashArray: '4 6', fill: s.type === 'jammer', fillColor: col, fillOpacity: 0.05, interactive: false }).addTo(gRoutes);
+        L.marker(s.ll, { icon: divIcon(`<div class="pin-sens" style="--c:${col}"><i class="ph-fill ph-${SENS_ICON[s.type]}"></i></div>`, [26, 26]), title: `${label}: menzil ${fmt(s.rangeM / 1000, 1)} km`, alt: label, zIndexOffset: 940 })
+          .bindTooltip(`${label}, menzil ${fmt(s.rangeM / 1000, 1)} km`, { direction: 'top', offset: [0, -12] }).addTo(gRoutes);
+      });
+    }
   }
+  const SENS_COLOR = { radar: '#6cb4ff', rf: '#b892ff', eo: '#5fd3c6', acoustic: '#d4d98a', jammer: '#ff8a65' };
+  const SENS_ICON = { radar: 'broadcast', rf: 'wifi-high', eo: 'video-camera', acoustic: 'ear', jammer: 'lightning' };
+  const SENS_LABEL = { radar: 'Radar', rf: 'RF dedektör', eo: 'EO/IR kamera', acoustic: 'Akustik sensör', jammer: 'RF karıştırıcı' };
   function drawRoutes() {
     gRoutes.clearLayers();
     if (!R || R.error) return;
@@ -2516,6 +3121,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   function setTool(t) {
     if (tool === 'draw' && t !== 'draw') { draft = []; gDraw.clearLayers(); }
     tool = tool === t ? null : t;
+    if (tool !== 'bearing' && atkPick >= 0) { atkPick = -1; renderAttackPanel(); }
     if (tool !== 'draw') redrawIdx = -1;
     $$('.tools [data-tool]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tool === tool));
     map.getContainer().style.cursor = tool ? 'crosshair' : '';
@@ -2524,6 +3130,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       home: 'Yeni kalkış noktası için haritaya tıklayın.',
       poi: 'İlgi noktası eklemek için tıklayın. Bitince Esc.',
       obstacle: 'Engel eklemek için tıklayın; yüksekliği Arazi sekmesinden düzenleyin.',
+      bearing: `Dalga ${atkPick + 1} için saldırı yönünü haritada tıklayın. Dronlar alanın merkezine göre bu yönden gelir.`,
     };
     hint.hidden = !tool;
     $('#hintText').textContent = tool ? msgs[tool] : '';
@@ -2558,10 +3165,12 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     } else if (tool === 'home') { addHome(ll); setTool('home'); }
     else if (tool === 'poi') { if (S.pois.length >= 60) return toast('En fazla 60 ilgi noktası eklenebilir.'); S.pois.push(ll); changed('poi'); }
     else if (tool === 'obstacle') { if (S.obstacles.length >= 60) return toast('En fazla 60 engel eklenebilir.'); S.obstacles.push({ lat: ll[0], lon: ll[1], h: 15 }); changed('obstacle'); }
+    else if (tool === 'bearing') { pickBearing(ll); }
   });
   document.addEventListener('keydown', (e) => {
     const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
     if (e.key === 'Escape' && tool) setTool(tool);
+    else if (e.key === 'Escape' && !$('#atkPanel').hidden) setAttackPanel(false);
     else if (e.key === 'Escape' && isExpanded()) setExpanded(false);
     else if (e.key === 'Enter' && tool === 'draw' && !typing) finishDraw();
     else if (e.key === ' ' && !typing && document.activeElement?.tagName !== 'BUTTON' && R && !R.error) { e.preventDefault(); toggleSim(); }
@@ -2730,6 +3339,22 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     auto: 'Her drone, arsa ve kalkış noktası çifti için rüzgâr, menzil, iş hızı, Wh başına iş, yedek batarya ve şarj süresi hesaplanır. Önceliğe göre en iyi dronelar seçilir, gereksiz olanlar yedekte kalır.',
     manual: 'Filo sekmesinde her drone için arsa ve kalkış noktasını siz seçersiniz.',
   };
+  function renderDefenseToggles() {
+    const df = S.defense;
+    $('#defOn').checked = !!df.enabled;
+    $('#defPatrol').checked = df.patrolAssist !== false;
+    $('#defBox').hidden = !df.enabled;
+    $('#defScen').replaceChildren(...Object.entries(Engine.THREAT_SCENARIOS).map(([id, sc]) => {
+      const cb = h('input', { type: 'checkbox', checked: df.scenarios.includes(id) });
+      cb.addEventListener('change', () => {
+        df.scenarios = Object.keys(Engine.THREAT_SCENARIOS).filter((k) => (k === id ? cb.checked : df.scenarios.includes(k)));
+        changed('mission');
+      });
+      return h('label', { class: 'chip chip-check', title: sc.desc }, cb, sc.name);
+    }));
+  }
+  $('#defOn').addEventListener('change', (e) => { S.defense.enabled = e.target.checked; renderDefenseToggles(); changed('mission'); });
+  $('#defPatrol').addEventListener('change', (e) => { S.defense.patrolAssist = e.target.checked; changed('mission'); });
   function renderMission() {
     $$('#modeSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === S.mission.mode));
     $$('#selSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.sel === S.mission.selection));
@@ -2766,7 +3391,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
       const w = new Worker(url);
       URL.revokeObjectURL(url);
-      w.onmessage = (e) => onResult(e.data.result, e.data.id);
+      w.onmessage = (e) => (e.data.kind === 'attack' ? onAttackResult(e.data.result, e.data.id) : onResult(e.data.result, e.data.id));
       w.onerror = (e) => { e.preventDefault?.(); worker = null; busy = false; log('Sistem', 'Arka plan hesaplayıcısı açılamadı; hesap ana sayfada yapılacak.', 'warn'); recompute(); };
       return w;
     } catch (e) { return null; }
@@ -2780,7 +3405,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     clearTimeout(timer);
     timer = setTimeout(recompute, 160);
   }
-  const inputForEngine = () => JSON.parse(JSON.stringify({ parcels: S.parcels, homes: S.homes, pois: S.pois, obstacles: S.obstacles, drones: S.drones, env: S.env, mission: S.mission, costs: S.costs, security: S.security, active: S.active }));
+  const inputForEngine = () => JSON.parse(JSON.stringify({ parcels: S.parcels, homes: S.homes, pois: S.pois, obstacles: S.obstacles, drones: S.drones, env: S.env, mission: S.mission, costs: S.costs, security: S.security, defense: S.defense, active: S.active }));
   let t0 = 0;
   function setBusy(on) {
     if (on) $('#hdrStatus').replaceChildren(h('span', { class: 'busy', 'aria-hidden': 'true' }), h('span', { text: 'Plan hesaplanıyor' }));
@@ -2810,7 +3435,10 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     toLL = R && !R.error ? Engine.projector(R.origin[0], R.origin[1]).toLL : null;
     if (R && !R.error && (!R.drones[selected] || !R.drones[selected].used)) { const f = R.drones.findIndex((d) => d.used); selected = f < 0 ? 0 : f; }
     stopSim(true);
+    sim.sample = null; sim.live = null; atkSeq++;
     drawRoutes(); renderResults(); renderSimDrones(); updateWind(); updateAngleText();
+    renderAttackUi();
+    if (S.attacks.length && atkReady()) runAttacks();
     if (R.error) { $('#hdrStatus').replaceChildren(icon('warning-octagon', true), h('span', { text: R.error })); $('#hdrStatus').firstChild.style.color = 'var(--crit)'; log('Plan', R.error, 'crit', { replacePlan: true }); return; }
     const crit = R.warnings.filter((w) => w.level === 'crit').length;
     const T = R.totals;
@@ -3047,6 +3675,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       h('h2', { text: 'Uyarılar' }), h('div', { class: 'warns' }, warns),
       h('h2', { text: 'Görevdeki drone sayısı' }), chartBox('cOcc', `24 saat boyunca devriyedeki drone sayısı. Hedef ${R.k}; altına düşen anlar arıza veya geç devirdir.`),
       h('h2', { text: 'Hazır yedek drone' }), chartBox('cReady', `İstasyonda şarjlı bekleyen drone sayısı. Hedef en az ${R.reserve}.`),
+      defenseSection(),
       h('h2', { text: 'İstasyon yerleşimi' }), h('div', { class: 'list' }, stations, repair), h('div', { class: 'add-row' }, saveHomes),
       h('h2', { text: 'Filo yeterliliği' }), fleetBox,
       h('h2', { text: 'Düzen karşılaştırması' }), cfgTable,
@@ -3055,8 +3684,77 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       sd ? [h('h2', { text: `Batarya: ${sd.name}` }), chartBox('cBat', 'Kalan batarya (%). Kesikli çizgi rezerv sınırı; dik çıkışlar batarya değişimidir.')] : null,
       securityNotes()].flat(2).filter(Boolean));
     drawCountChart('cOcc', r.series.occ, R.rep.seriesStep, R.k, 'devriyede');
+    if (R.defense) drawPolar('cPolar', R.defense);
     drawCountChart('cReady', r.series.ready, R.rep.seriesStep, R.reserve, 'hazır yedek');
     if (sd) drawTimeChart('cBat', sd, (s) => s.bat, '%', 100 - 100 * sd.usable / (sd.full || 1), [0, 100]);
+  }
+  function defenseSection() {
+    const df = R.defense;
+    if (!df) return null;
+    const o = df.overall;
+    const tile = (big, small, cls) => h('div', null, h('b', { text: big, style: cls ? `color:var(--${cls})` : null }), h('span', { text: small }));
+    const tiles = h('div', { class: 'summary' },
+      tile('%' + fmt(o.detectRate * 100), 'tehdit tespit edildi'),
+      tile(fmtSec(o.warnSec), 'ortalama erken uyarı'),
+      tile('%' + fmt(o.neutralRate * 100), 'etkisizleştirildi', 'ok'),
+      tile('%' + fmt(o.leakRate * 100), 'korunan noktaya ulaştı', o.leakRate > 0.1 ? 'crit' : o.leakRate > 0.03 ? 'warn' : null));
+    const rows = df.scenarios.map((s, si) => h('tr', null,
+      h('th', { scope: 'row', title: s.desc, text: s.name }),
+      h('td', { text: '%' + fmt(s.detectRate * 100) }),
+      h('td', { text: fmtSec(s.warnSec) }),
+      h('td', { text: '%' + fmt(s.neutralRate * 100) }),
+      h('td', { class: s.leakRate > 0.1 ? 'bad' : null, text: '%' + fmt(s.leakRate * 100) }),
+      h('td', null, h('button', { class: 'btn icon play', type: 'button', title: 'Haritada oynat', 'aria-label': `${s.name} saldırısını haritada oynat`, onclick: () => playAttack(si) }, icon('play', true)))));
+    const table = h('div', { class: 'cfgwrap' }, h('table', { class: 'cfgt def' },
+      h('thead', null, h('tr', null, ...['Senaryo', 'Tespit', 'Uyarı', 'Etkisiz', 'Sızma', 'Oynat'].map((t) => h('th', { scope: 'col', text: t })))),
+      h('tbody', null, rows)));
+    const sensName = { radar: 'radar', rf: 'RF', eo: 'EO/IR', acoustic: 'akustik', patrol: 'devriye kamerası' };
+    const details = h('details', { class: 'method' }, h('summary', { text: 'Senaryo ayrıntıları' }), h('ul', null, ...df.scenarios.map((s) => {
+      const first = Object.entries(s.firstBy).filter(([, v]) => v > 0.02).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${sensName[k]} %${fmt(v * 100)}`).join(', ');
+      return h('li', null, h('b', { text: s.name + ': ' }), s.desc,
+        ` Deneme başına ${fmt(s.threatsPerRun, 1)} tehdit${s.id === 'decoy' ? `, asıl tehdidin sızma oranı %${fmt(s.mainLeakRate * 100)}` : ''}. İlk tespit: ${first || 'yok'}. Tespit mesafesi ortalama ${fmt(s.detectDistM / 1000, 2)} km. Sınıflandırmadan müdahaleye ${fmtSec(s.respSec)}. Etkisizleştirme: ağ ${s.byEffector.net}, karıştırma ${s.byEffector.jammer} (${df.params.runs} denemede). Hiç sızma olmayan deneme %${fmt(s.noLeakRate * 100)}. Devriyeden ayrılan süre deneme başına ${fmtSec(s.patrolLossSec)}.`);
+    })));
+    const sens = h('div', null, ...df.sensitivity.map((x) => h('div', { class: 'sensbar' },
+      h('span', { text: `${x.interceptors} önleyici` }),
+      h('div', null, h('div', { class: 'bar' + (x.leakRate <= 0.05 ? ' ok' : ''), style: `width:${Math.max(1, Math.min(100, x.leakRate * 100 / Math.max(0.01, df.sensitivity[0].leakRate)))}%` })),
+      h('span', { class: 'num', text: '%' + fmt(x.leakRate * 100) }))));
+    const advice = df.advice.map((a) => h('div', { class: 'warn warn' }, icon('lightbulb', true), h('span', { text: a })));
+    return [
+      h('h2', { text: 'Dış drone tehdidi: tespit ve önleme' }), tiles,
+      h('p', { class: 'chart-cap', text: `${df.scenarios.length} senaryo, her biri ${df.params.runs} rastgele denemeyle (yön, irtifa, hız, hedef ve otonomluk rastgele). Sensörler: ${df.sensors.length}, karıştırıcı: ${df.jammers.length}, önleyici drone: ${df.params.interceptors}.` }),
+      table, h('p', { class: 'chart-cap', text: 'Oynat düğmesi o senaryodan örnek bir saldırıyı haritada gösterir. Kendi saldırınızı göndermek için haritadaki Rastgele saldırı ve Saldırı planla düğmelerini kullanın.' }), details,
+      h('h2', { text: 'Yaklaşma yönlerine göre erken uyarı' }), chartBox('cPolar', 'Merkezden uzaklık: tehdidin ilk tespit edildiği mesafe. Kuzey yukarıda. İçe çöken yönler kör sektördür.'),
+      h('h2', { text: 'Önleyici sayısına göre sızma' }), sens,
+      h('p', { class: 'chart-cap', text: `Tüm seçili senaryolarda korunan noktaya ulaşan tehdit oranı. Yeşil çubuklar %5 hedefinin altıdır. ${df.recommendedOk ? `Önerilen: ${df.recommendedInterceptors} önleyici.` : 'Denenen hiçbir sayıda %5 altına inilmiyor; tek başına önleyici artırmak yetmiyor.'}` }),
+      h('h2', { text: 'Savunma önerileri' }), h('div', { class: 'warns' }, advice),
+      h('p', { class: 'legal', text: 'Bu benzetim planlama ve eğitim amaçlıdır. RF karıştırma ve fiziksel önleme araçlarının kullanımı mevzuata tabidir ve yalnız yetkili güvenlik birimlerince uygulanabilir.' }),
+    ];
+  }
+  function drawPolar(id, df) {
+    const cv = $('#' + id); if (!cv) return;
+    cv.style.height = '300px';
+    const { ctx, w, h: hh } = setupCanvas(cv);
+    const cx = w / 2, cy = hh / 2 + 4, Rpx = Math.min(w, hh) / 2 - 24, maxM = Math.max(500, ...df.sectors.map((s) => Math.max(s.mid, s.low)));
+    const step = maxM > 3000 ? 1000 : 500;
+    const P = (bear, m) => { const a = bear * Math.PI / 180, r = m / maxM * Rpx; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
+    ctx.strokeStyle = css('--line'); ctx.fillStyle = css('--muted'); ctx.font = '11px "Chakra Petch", sans-serif'; ctx.lineWidth = 1;
+    for (let m = step; m <= maxM; m += step) { ctx.beginPath(); ctx.arc(cx, cy, m / maxM * Rpx, 0, Math.PI * 2); ctx.stroke(); ctx.textAlign = 'left'; ctx.fillText(fmt(m / 1000, 1) + ' km', cx + 3, cy - m / maxM * Rpx + 11); }
+    [['K', 0], ['D', 90], ['G', 180], ['B', 270]].forEach(([t, b]) => { const p = P(b, maxM * 1.09); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, p[0], p[1]); });
+    const line = (key, col, dash, lw) => {
+      ctx.strokeStyle = col; ctx.lineWidth = lw || 2; ctx.setLineDash(dash || []); ctx.beginPath();
+      df.sectors.forEach((s, k) => { const p = P(s.bearing, s[key]); if (k) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+      ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+    };
+    line('mid', css('--accent'), null, 5); line('low', '#6cb4ff'); line('lowAuto', css('--crit'), [5, 4]);
+    // gösterge
+    const lg = [['80 m irtifa', css('--accent'), []], ['25 m irtifa', '#6cb4ff', []], ['25 m, otonom', css('--crit'), [5, 4]]];
+    lg.forEach(([t, c, d], k) => { const y = 12 + k * 15; ctx.strokeStyle = c; ctx.setLineDash(d); ctx.beginPath(); ctx.moveTo(6, y); ctx.lineTo(24, y); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = css('--text'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(t, 28, y); });
+    cv.onmousemove = (e) => {
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left - cx, y = e.clientY - r.top - cy;
+      const b = Math.round(((Math.atan2(x, -y) * 180 / Math.PI + 360) % 360) / 10) % 36, s = df.sectors[b];
+      showTip(e.clientX, e.clientY, [h('b', { text: `${s.bearing}° yönü` }), h('br'), `80 m: ${fmt(s.mid / 1000, 2)} km`, h('br'), `25 m: ${fmt(s.low / 1000, 2)} km`, h('br'), `25 m otonom: ${fmt(s.lowAuto / 1000, 2)} km`]);
+    };
+    cv.onmouseleave = hideTip;
   }
   function securityNotes() {
     return h('details', { class: 'method' }, h('summary', { text: 'Güvenlik algoritması' }), h('ul', null,
@@ -3319,8 +4017,9 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     const list = R && !R.error ? R.drones.filter((d) => d.used) : [];
     s.replaceChildren(...(list.length ? list.map((d) => h('option', { value: d.idx, text: `Gösterge: ${d.name}` })) : [h('option', { value: -1, text: 'Drone seçilmedi' })]));
     s.value = selected;
-    gSim.clearLayers(); sim.marks = []; sim.trails = []; sim.fov = []; sim.idx = []; sim.fired = [];
+    gSim.clearLayers(); sim.marks = []; sim.trails = []; sim.fov = []; sim.idx = []; sim.fired = []; sim.ext = [];
     if (!R || R.error) { updateGauges(); return; }
+    buildThreatSim();
     R.drones.forEach((d, i) => {
       sim.idx.push(-1); sim.fired.push(0);
       if (d.empty || !d.timeline.length) { sim.marks.push(null); sim.trails.push(null); sim.fov.push(null); return; }
@@ -3360,9 +4059,74 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
       if (withEvents) fireEvents(d, i, ix); else sim.fired[i] = ix + 1;
       sim.idx[i] = ix;
     });
+    updateThreatSim(withEvents);
     $('#simClock').textContent = 'T+' + clock(sim.t);
     $('#scrub').value = tmax ? Math.round(sim.t / tmax * 1000) : 0;
     updateGauges();
+  }
+  /* Dış tehdit benzetimi: örnek saldırı (Oynat) ve gönderilen saldırılar haritada oynar */
+  const threatPacks = () => [sim.sample, sim.live].filter(Boolean);
+  function buildThreatSim() {
+    for (const e of sim.ext || []) { gSim.removeLayer(e.mk); gSim.removeLayer(e.tr); }
+    sim.ext = [];
+    if (!R || !R.defense) return;
+    threatPacks().forEach((pk) => {
+      pk.fired = 0;
+      pk.threats.forEach((th) => {
+        if (!th.timeline.length) return;
+        const cls = th.decoy ? 'thr decoy' : 'thr';
+        sim.ext.push({ kind: 'threat', th, tl: th.timeline,
+          mk: L.marker(th.timeline[0].ll, { icon: divIcon(`<div class="${cls}"><i class="ph-fill ph-${th.fixed ? 'airplane-tilt' : 'drone'}"></i><span class="tag">${esc(th.name)}</span></div>`, [24, 24]), interactive: false, keyboard: false, zIndexOffset: 1100 }),
+          tr: L.polyline([], { color: '#ff5d55', weight: 2, opacity: 0.9, dashArray: th.decoy ? '3 5' : null, interactive: false }) });
+      });
+      pk.interceptors.forEach((it) => {
+        sim.ext.push({ kind: 'int', tl: it.timeline,
+          mk: L.marker(it.timeline[0].ll, { icon: divIcon(`<div class="intc"><i class="ph-fill ph-crosshair-simple"></i><span class="tag">${esc(it.name)}</span></div>`, [22, 22]), interactive: false, keyboard: false, zIndexOffset: 1050 }),
+          tr: L.polyline([], { color: '#ffffff', weight: 1.5, opacity: 0.8, interactive: false }) });
+      });
+    });
+  }
+  function updateThreatSim(withEvents) {
+    if (!R || !R.defense) return;
+    for (const e of sim.ext) {
+      const tl = e.tl, t0 = tl[0].t, t1 = tl[tl.length - 1].t;
+      const on = sim.t >= t0 && sim.t <= t1 + (e.kind === 'threat' ? 45 : 5);
+      if (!on) { if (gSim.hasLayer(e.mk)) { gSim.removeLayer(e.mk); gSim.removeLayer(e.tr); } continue; }
+      if (!gSim.hasLayer(e.mk)) { e.mk.addTo(gSim); e.tr.addTo(gSim); }
+      const ix = findIdx(tl, sim.t), a = tl[ix], b = tl[Math.min(tl.length - 1, ix + 1)];
+      const f = b.t > a.t ? clampN((sim.t - a.t) / (b.t - a.t), 0, 1) : 0;
+      const ll = toLL([a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f]);
+      e.mk.setLatLng(ll);
+      const el = e.mk.getElement();
+      if (el && e.kind === 'threat') { const last = tl[tl.length - 1]; el.firstChild.classList.toggle('gone', sim.t >= last.t && last.k === 'down'); el.firstChild.classList.toggle('hit', sim.t >= last.t && last.k === 'hit'); }
+      const pts = []; for (let k = Math.max(0, ix - 25); k <= ix; k++) pts.push(tl[k].ll); pts.push(ll);
+      e.tr.setLatLngs(pts);
+    }
+    threatPacks().forEach((pk) => {
+      const ev = pk.events;
+      // geri sarınca sayaç da geri gelir; kayıt yalnız oynatırken yazılır
+      if (!withEvents) { let k = 0; while (k < ev.length && ev[k].t <= sim.t) k++; pk.fired = k; return; }
+      let k = pk.fired || 0, n = 0;
+      while (k < ev.length && ev[k].t <= sim.t && n < 8) { const e = ev[k]; log(e.who || pk.label, e.msg, e.lvl, { simTime: e.t }); k++; n++; }
+      pk.fired = k;
+    });
+    refreshAttackStatus(withEvents);
+  }
+  const clampN = (v, a, b) => Math.min(b, Math.max(a, v));
+  function playAttack(si) {
+    const sc = R.defense.scenarios[si];
+    stopSim(true);
+    sim.fired = sim.fired.map(() => 0);
+    sim.sample = Object.assign({ label: sc.name }, sc.rep);
+    buildThreatSim();
+    sim.t = Math.max(0, sc.rep.t0 - 20);
+    updateSim(false);
+    // saldırının bütününü görecek şekilde haritayı aç
+    const pts = sc.rep.threats.flatMap((th) => th.timeline.map((s) => s.ll)).concat(S.parcels[R.activeParcel].pts);
+    if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+    $('#simSpeed').value = '10';
+    log('Benzetim', `Örnek saldırı oynatılıyor: ${sc.name} (T+${clock(sc.rep.t0)}).`, 'warn');
+    toggleSim();
   }
   function fireEvents(d, i, ix) {
     const tl = d.timeline;
@@ -3388,7 +4152,16 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   function tick(now) {
     if (!sim.running) return;
     const dt = Math.min(0.1, (now - sim.last) / 1000); sim.last = now;
-    sim.t += dt * Number($('#simSpeed').value);
+    const spd = Number($('#simSpeed').value), step = dt * spd;
+    if (spd > 30 && sim.live) {
+      const nx = S.attacks.map((a) => a.t0).filter((t) => t > sim.t + 1).sort((p, q) => p - q)[0];
+      if (nx !== undefined && sim.t + step >= nx - 15) {
+        sim.t = Math.max(sim.t, nx - 15); $('#simSpeed').value = '10';
+        log('Saldırı', `Planlı saldırı yaklaşıyor (T+${clockH(nx)}); izlemek için simülasyon 10× hıza alındı.`, 'warn', { simTime: sim.t });
+        updateSim(true); sim.raf = requestAnimationFrame(tick); return;
+      }
+    }
+    sim.t += step;
     const tmax = simMax();
     if (sim.t >= tmax) { sim.t = tmax; updateSim(true); stopSim(); log('Simülasyon', `Tüm filo görevini bitirdi. Süre ${fmtDur(tmax)}.`, 'ok', { simTime: tmax }); return; }
     updateSim(true);
@@ -3412,6 +4185,234 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
   $('#btnSim').addEventListener('click', toggleSim);
   $('#btnReset').addEventListener('click', () => { stopSim(true); sim.fired = sim.fired.map(() => 0); updateSim(false); });
   $('#scrub').addEventListener('input', (e) => { sim.t = simMax() * Number(e.target.value) / 1000; updateSim(false); });
+
+  /* ---------- Saldırı merkezi: istenen anda rastgele veya planlı saldırı ---------- */
+  const clockH = (s) => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 3600) + ':' + String(Math.floor((s % 3600) / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+  const ATK_AUTO = [['mix', 'Karışık'], ['yes', 'Otonom (radyo yok)'], ['no', 'RF bağlantılı']];
+  const COMPASS = ['K', 'KKD', 'KD', 'DKD', 'D', 'DGD', 'GD', 'GGD', 'G', 'GGB', 'GB', 'BGB', 'B', 'BKB', 'KB', 'KKB'];
+  const yonAdi = (b) => COMPASS[Math.round(((b % 360) + 360) % 360 / 22.5) % 16];
+  const scName = (id) => (Engine.THREAT_SCENARIOS[id] ? Engine.THREAT_SCENARIOS[id].name : 'Rastgele senaryo');
+  let atkSeq = 0, atkPick = -1, atkPatrols = null, atkPatrolsFor = null, atkStatusKey = '';
+  const atkReady = () => !!(R && !R.error && R.mode === 'security' && R.defense && R.defense.geo);
+  function describeWaves(ws) {
+    return ws.map((w) => `${scName(w.scenario)}${w.count ? ' ×' + w.count : ''}, ${w.bearing === null || w.bearing === undefined ? 'rastgele yön' : `${w.bearing}° (${yonAdi(w.bearing)})`}${w.delaySec ? `, +${w.delaySec} sn` : ''}${w.auto === 'yes' ? ', otonom' : w.auto === 'no' ? ', RF bağlantılı' : ''}`).join('; ');
+  }
+  function atkPatrolList() {
+    if (atkPatrolsFor !== R) {
+      atkPatrols = R.drones.filter((d) => d.timeline && d.timeline.length).map((d) => ({ name: d.name, timeline: d.timeline.map((s) => ({ t: s.t, x: s.x, y: s.y, z: s.z })) }));
+      atkPatrolsFor = R;
+    }
+    return atkPatrols;
+  }
+  function runAttacks() {
+    if (!atkReady()) return;
+    const id = ++atkSeq;
+    if (!S.attacks.length) { onAttackResult(null, id); return; }
+    const input = { geo: R.defense.geo, attacks: S.attacks, patrols: atkPatrolList() };
+    if (worker) { worker.postMessage({ id, kind: 'attack', input }); return; }
+    setTimeout(() => { let r; try { r = Engine.simulateAttacks(input.geo, input.attacks, input.patrols); } catch (err) { r = { error: 'Saldırı benzetilemedi: ' + err.message }; } onAttackResult(r, id); }, 0);
+  }
+  function onAttackResult(res, id) {
+    if (id !== atkSeq || !atkReady()) return;
+    if (res && res.error) { log('Saldırı', res.error, 'crit'); return; }
+    if (res && res.threats.length) {
+      res.label = 'Saldırı';
+      res.ends = res.attacks.map((a, ai) => Math.max(a.t0, ...res.threats.filter((t) => t.attack === ai).map((t) => t.timeline[t.timeline.length - 1].t)));
+      sim.live = res;
+    } else sim.live = null;
+    atkStatusKey = '';
+    buildThreatSim(); updateSim(false); renderAttackList();
+  }
+  function attackStatus(ai) {
+    const a = S.attacks[ai], L2 = sim.live;
+    if (!L2 || !L2.attacks[ai]) return { k: 'wait', t: 'Hesaplanıyor' };
+    const s = L2.attacks[ai];
+    if (sim.t < a.t0) return { k: 'plan', t: 'Planlandı' };
+    if (sim.t < L2.ends[ai]) return { k: 'run', t: 'Sürüyor' };
+    return { k: s.leak ? 'leak' : 'done', t: s.leak ? 'Sızma var' : 'Önlendi', s };
+  }
+  function resultText(s) {
+    return `${s.threats} tehdit: ${s.detected} tespit, ${s.neutral} etkisiz, ${s.leak} korunan noktaya ulaştı${s.other ? `, ${s.other} çekildi` : ''}. İlk tespit saldırıdan ${s.firstDetectSec === null ? 'hiç' : fmtSec(s.firstDetectSec) + ' sonra'}, ortalama erken uyarı ${fmtSec(s.warnSec)}.`;
+  }
+  function refreshAttackStatus(withEvents) {
+    if (!sim.live) return;
+    const st = S.attacks.map((_, ai) => attackStatus(ai));
+    const key = st.map((x) => x.k).join(',');
+    if (key === atkStatusKey) return;
+    const prev = atkStatusKey.split(',');
+    atkStatusKey = key;
+    if (withEvents) st.forEach((x, ai) => {
+      if (x.s && prev[ai] === 'run') log('Saldırı', `${S.attacks[ai].tag} bitti. ${resultText(x.s)}`, x.s.leak ? 'crit' : 'ok', { simTime: sim.t });
+      if (x.k === 'run' && prev[ai] === 'plan') log('Saldırı', `${S.attacks[ai].tag} başladı: ${describeWaves(S.attacks[ai].waves)}.`, 'warn', { simTime: S.attacks[ai].t0 });
+    });
+    renderAttackList();
+  }
+  function launchAttack(plan, label) {
+    if (!atkReady()) { toast('Saldırı göndermek için 7/24 güvenlik görevinde dış drone tehdidi benzetimini açın.'); return; }
+    if (S.attacks.length >= 20) { toast('En fazla 20 saldırı planlanabilir. Eskileri kaldırın.'); return; }
+    const now = plan.t0 === undefined, tmax = simMax();
+    const t0 = Math.round(clampN(now ? sim.t + 5 : plan.t0, 0, Math.max(0, tmax - 60)));
+    S.attackNo = (S.attackNo || 0) + 1;
+    const a = { tag: 'S' + S.attackNo, t0, seed: 1 + Math.floor(Math.random() * 999999), waves: plan.waves.map((w) => Object.assign({}, w)) };
+    S.attacks.push(a); save();
+    log('Saldırı', `${a.tag} ${now ? 'gönderildi' : 'planlandı'} (${label}): ${describeWaves(a.waves)}. Başlangıç T+${clockH(t0)}.`, 'warn', { simTime: sim.t });
+    atkStatusKey = '';
+    runAttacks(); renderAttackList();
+    if (now) { $('#simSpeed').value = '10'; if (!sim.running) toggleSim(); }
+  }
+  function watchAttack(ai) {
+    const a = S.attacks[ai];
+    if (!a) return;
+    stopSim();
+    sim.t = Math.max(0, a.t0 - 10); updateSim(false);
+    const pts = (sim.live ? sim.live.threats.filter((t) => t.attack === ai).flatMap((t) => t.timeline.map((s) => s.ll)) : []).concat(S.parcels[R.activeParcel].pts);
+    if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+    $('#simSpeed').value = '10';
+    toggleSim();
+  }
+  function removeAttack(ai) {
+    const a = S.attacks.splice(ai, 1)[0];
+    save(); atkStatusKey = '';
+    if (a) log('Saldırı', `${a.tag} kaldırıldı.`, null);
+    runAttacks(); renderAttackList();
+  }
+  function setAttackPanel(on) {
+    $('#atkPanel').hidden = !on;
+    $('#btnPlanAtk').setAttribute('aria-expanded', on);
+    $('#btnPlanAtk').setAttribute('aria-pressed', on);
+    if (!on && tool === 'bearing') setTool('bearing');
+    renderAttackPanel();
+    // saldırı yönleri görünsün: gelişler alan merkezinden spawnR uzakta başlar
+    if (on && atkReady()) map.fitBounds(L.latLng(R.defense.centerLL).toBounds(R.defense.geo.spawnR * 2.2), { paddingTopLeft: [Math.min(370, map.getSize().x / 2), 10], paddingBottomRight: [10, 10] });
+    if (on) $('#atkPanel').querySelector('select, input, button:not(.ap-x)')?.focus();
+  }
+  function renderAttackUi() {
+    const ok = atkReady();
+    $('#atkBar').hidden = !ok;
+    if (!ok) { $('#atkPanel').hidden = true; gAtk.clearLayers(); return; }
+    renderAttackPanel();
+  }
+  function pickBearing(ll) {
+    const w = S.attackDraft.waves[atkPick];
+    if (!w || !atkReady()) { setTool('bearing'); return; }
+    const c = R.defense.centerLL, dy = ll[0] - c[0], dx = (ll[1] - c[1]) * Math.cos(c[0] * Math.PI / 180);
+    w.bearing = Math.round(((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360) % 360;
+    save();
+    setTool('bearing'); // araç kapanır, panel yeniden çizilir
+  }
+  function drawAttackPreview() {
+    gAtk.clearLayers();
+    if (!atkReady() || $('#atkPanel').hidden || !toLL) return;
+    const G = R.defense.geo, cLL = R.defense.centerLL;
+    S.attackDraft.waves.forEach((w, wi) => {
+      if (w.bearing === null) return;
+      const r = w.bearing * Math.PI / 180, sp = toLL([G.C[0] + Math.sin(r) * G.spawnR, G.C[1] + Math.cos(r) * G.spawnR]);
+      L.polyline([sp, cLL], { color: '#ff5d55', weight: 2.5, opacity: 0.95, dashArray: '8 6', interactive: false }).addTo(gAtk);
+      L.marker(sp, { icon: divIcon(`<span class="atk-dir">D${wi + 1} · ${w.bearing}° ${yonAdi(w.bearing)}</span>`, [96, 20], [0, 10]), interactive: false, keyboard: false, zIndexOffset: 1200 }).addTo(gAtk);
+    });
+  }
+  const parseClock = (s) => {
+    const m = /^(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?$/.exec((s || '').trim());
+    if (!m) return null;
+    return Number(m[1]) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0);
+  };
+  let afid = 0;
+  function renderAttackPanel() {
+    drawAttackPreview();
+    const P = $('#atkPanel');
+    if (P.hidden || !atkReady()) return;
+    const D = S.attackDraft, G = R.defense.geo, tmax = simMax();
+    const upd = () => { save(); drawAttackPreview(); };
+    const optN = (v) => (v === '' ? null : Number(v));
+    const waves = D.waves.map((w, wi) => {
+      const id = (k) => `aw${++afid}${k}`;
+      const iS = id('s'), iB = id('b'), iC = id('c'), iD = id('d'), iA = id('a');
+      const sel = h('select', { id: iS }, ...[['random', 'Rastgele senaryo'], ...G.scIds.map((k) => [k, scName(k)])].map(([v, t]) => h('option', { value: v, text: t })));
+      sel.value = w.scenario; if (sel.value !== w.scenario) { sel.value = 'random'; w.scenario = 'random'; }
+      sel.addEventListener('change', () => { w.scenario = sel.value; upd(); });
+      const bIn = h('input', { id: iB, type: 'number', min: 0, max: 359, step: 1, inputmode: 'numeric', placeholder: 'Rastgele', value: w.bearing === null ? '' : w.bearing });
+      bIn.addEventListener('input', () => { const v = optN(bIn.value); w.bearing = v === null || !Number.isFinite(v) ? null : Math.round(((v % 360) + 360) % 360); upd(); });
+      const pick = h('button', { class: 'btn icon', type: 'button', title: 'Yönü haritada seç', 'aria-label': `Dalga ${wi + 1} yönünü haritada seç`, 'aria-pressed': atkPick === wi && tool === 'bearing' },
+        icon('map-pin-line', true));
+      pick.addEventListener('click', () => { if (tool === 'bearing' && atkPick === wi) { setTool('bearing'); return; } atkPick = wi; if (tool !== 'bearing') setTool('bearing'); else $('#hintText').textContent = `Dalga ${wi + 1} için saldırı yönünü haritada tıklayın. Dronlar alanın merkezine göre bu yönden gelir.`; renderAttackPanel(); });
+      const cIn = h('input', { id: iC, type: 'number', min: 1, max: 20, step: 1, inputmode: 'numeric', placeholder: 'Senaryoya göre', value: w.count === null ? '' : w.count });
+      cIn.addEventListener('input', () => { const v = optN(cIn.value); w.count = v === null || !Number.isFinite(v) ? null : clampN(Math.round(v), 1, 20); upd(); });
+      const dIn = h('input', { id: iD, type: 'number', min: 0, max: 1800, step: 5, inputmode: 'numeric', value: w.delaySec });
+      dIn.addEventListener('input', () => { const v = Number(dIn.value); w.delaySec = Number.isFinite(v) ? clampN(Math.round(v), 0, 1800) : 0; upd(); });
+      const aSel = h('select', { id: iA }, ...ATK_AUTO.map(([v, t]) => h('option', { value: v, text: t })));
+      aSel.value = w.auto; aSel.addEventListener('change', () => { w.auto = aSel.value; upd(); });
+      const rm = h('button', { class: 'btn ghost danger rm', type: 'button', disabled: D.waves.length < 2, 'aria-label': `Dalga ${wi + 1} kaldır` }, icon('trash', true), 'Kaldır');
+      rm.addEventListener('click', () => { D.waves.splice(wi, 1); if (atkPick >= D.waves.length) atkPick = -1; save(); renderAttackPanel(); });
+      return h('fieldset', { class: 'wave' }, h('legend', { text: `Dalga ${wi + 1}` }),
+        h('div', { class: 'af wide' }, h('label', { for: iS, text: 'Senaryo' }), sel),
+        h('div', { class: 'af' }, h('label', { for: iB, text: 'Geliş yönü (°)' }), h('div', { class: 'inl' }, bIn, pick)),
+        h('div', { class: 'af' }, h('label', { for: iC, text: 'Drone sayısı' }), cIn),
+        h('div', { class: 'af' }, h('label', { for: iD, text: 'Gecikme (sn)' }), dIn),
+        h('div', { class: 'af' }, h('label', { for: iA, text: 'Bağlantı' }), aSel),
+        rm);
+    });
+    const segBtn = (v, ic, t) => { const b = h('button', { type: 'button', 'aria-pressed': D.when === v }, icon(ic, true), t); b.addEventListener('click', () => { D.when = v; save(); renderAttackPanel(); }); return b; };
+    const atId = 'atkAt';
+    const atIn = h('input', { id: atId, class: 'num', type: 'text', inputmode: 'numeric', placeholder: 'sa:dk, ör. 2:30', value: D.at, autocomplete: 'off', 'aria-describedby': 'atkAtHelp' });
+    atIn.addEventListener('input', () => { D.at = atIn.value.replace(/[^0-9:]/g, '').slice(0, 8); save(); });
+    const add = h('button', { class: 'btn', type: 'button', disabled: D.waves.length >= 8 }, icon('plus', true), 'Dalga ekle');
+    add.addEventListener('click', () => { const last = D.waves[D.waves.length - 1]; const w = newWave(); if (last && last.bearing !== null) w.bearing = (last.bearing + 120) % 360; D.waves.push(w); save(); renderAttackPanel(); });
+    const rnd = h('button', { class: 'btn', type: 'button', title: 'Taslağı rastgele bir saldırıyla doldur' }, icon('shuffle', true), 'Rastgele doldur');
+    rnd.addEventListener('click', () => { D.waves = Engine.randomAttack(1 + Math.floor(Math.random() * 999999), G.scIds).waves; save(); renderAttackPanel(); });
+    const go = h('button', { class: 'btn atk', type: 'button' }, icon(D.when === 'now' ? 'paper-plane-tilt' : 'calendar-plus', true), D.when === 'now' ? 'Saldırıyı şimdi gönder' : 'Saldırıyı planla');
+    go.addEventListener('click', () => {
+      let t0;
+      if (D.when === 'at') {
+        t0 = parseClock(D.at);
+        if (t0 === null || t0 > tmax) { toast(`Saldırı anını sa:dk olarak girin (T+0:00 ile T+${clockH(tmax)} arası).`); atIn.focus(); return; }
+      }
+      launchAttack({ t0, waves: D.waves }, 'plan');
+    });
+    const close = h('button', { class: 'btn icon ghost ap-x', type: 'button', 'aria-label': 'Saldırı planlayıcıyı kapat' }, icon('x', true));
+    close.addEventListener('click', () => setAttackPanel(false));
+    P.replaceChildren(
+      h('div', { class: 'ap-h' }, icon('crosshair', true), h('h2', { text: 'Saldırı planla' }), close),
+      h('div', { class: 'ap-b' },
+        h('p', { class: 'ap-note', text: `Her dalga bir senaryodur ve kendi yönünden gelir. Birden çok dalga, aynı anda farklı yerlerden saldırı demektir. Sensörler ve önleyiciler (${G.DF.interceptors} adet) tüm saldırılarda ortaktır.` }),
+        h('h3', { text: 'Zaman' }),
+        h('div', { class: 'seg', role: 'group', 'aria-label': 'Saldırı zamanı' }, segBtn('now', 'lightning', 'Hemen'), segBtn('at', 'clock', 'Belirli anda')),
+        D.when === 'at' ? h('div', { class: 'wave', style: 'border-left-color:var(--line-strong);grid-template-columns:1fr' },
+          h('div', { class: 'af' }, h('label', { for: atId, text: 'Başlangıç (simülasyon saati, T+)' }), atIn,
+            h('span', { id: 'atkAtHelp', text: `Şu an T+${clockH(sim.t)}; benzetim T+${clockH(tmax)} sürer. Hızlı oynatmada saldırıya yaklaşınca hız 10× olur.` }))) : null,
+        h('h3', { text: `Dalgalar (${D.waves.length}/8)` }), ...waves,
+        h('div', { class: 'ap-row' }, add, rnd),
+        go,
+        h('h3', { text: 'Gönderilen saldırılar' }),
+        h('div', { id: 'atkList' })));
+    renderAttackList();
+  }
+  function renderAttackList() {
+    const n = S.attacks.length, cnt = $('#atkCnt');
+    cnt.hidden = !n; cnt.textContent = n;
+    const box = $('#atkList');
+    if (!box) return;
+    if (!n) { box.replaceChildren(h('p', { class: 'ap-note', text: 'Henüz saldırı yok. Rastgele saldırı düğmesi seçili senaryolardan 1-3 dalgayı farklı yönlerden hemen gönderir.' })); return; }
+    const items = S.attacks.map((a, ai) => {
+      const st = attackStatus(ai);
+      const watch = h('button', { class: 'btn', type: 'button', 'aria-label': `${a.tag} saldırısını izle` }, icon('eye', true), 'İzle');
+      watch.addEventListener('click', () => watchAttack(ai));
+      const del = h('button', { class: 'btn ghost danger', type: 'button', 'aria-label': `${a.tag} saldırısını kaldır` }, icon('trash', true), 'Kaldır');
+      del.addEventListener('click', () => removeAttack(ai));
+      return h('li', { class: 'atk-item' },
+        h('div', { class: 'ah' }, h('b', { text: a.tag }), h('span', { class: 'num', text: 'T+' + clockH(a.t0) }), h('span', { class: 'st ' + st.k, text: st.t })),
+        h('div', { class: 'ad', text: describeWaves(a.waves) }),
+        st.s ? h('div', { class: 'ar', text: resultText(st.s) }) : null,
+        h('div', { class: 'ab' }, watch, del));
+    });
+    const clear = h('button', { class: 'btn ghost danger', type: 'button' }, icon('trash', true), 'Tümünü kaldır');
+    clear.addEventListener('click', () => { S.attacks = []; save(); atkStatusKey = ''; log('Saldırı', 'Tüm saldırılar kaldırıldı.', null); runAttacks(); renderAttackList(); });
+    box.replaceChildren(h('ul', { class: 'atk-list' }, ...items.reverse()), h('div', { class: 'ap-row', style: 'margin-top:8px' }, clear));
+  }
+  $('#btnRandAtk').addEventListener('click', () => {
+    if (!atkReady()) return;
+    launchAttack(Engine.randomAttack(1 + Math.floor(Math.random() * 999999), R.defense.geo.scIds), 'rastgele');
+  });
+  $('#btnPlanAtk').addEventListener('click', () => setAttackPanel($('#atkPanel').hidden));
 
   /* ---------- Dışa / içe aktarma ---------- */
   function download(name, text, type) {
@@ -3482,6 +4483,10 @@ if (typeof self !== 'undefined' && typeof window === 'undefined' && typeof impor
     renderFields($('#secFields'), S.security, SEC_FIELDS, () => changed('mission'));
     renderFields($('#secFailFields'), S.security, SEC_FAIL_FIELDS, () => changed('mission'));
     renderFields($('#secSimFields'), S.security, SEC_SIM_FIELDS, () => changed('mission'));
+    renderFields($('#defSensFields'), S.defense, DEF_SENS_FIELDS, () => changed('mission'));
+    renderFields($('#defEffFields'), S.defense, DEF_EFF_FIELDS, () => changed('mission'));
+    renderFields($('#defAsmFields'), S.defense, DEF_ASM_FIELDS, () => changed('mission'));
+    renderDefenseToggles();
     setBase(S.baseLayer);
     drawParcels(); drawMarks(); renderArazi(); renderFleet(); renderMission();
     recompute();
